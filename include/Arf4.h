@@ -59,11 +59,14 @@ namespace Arf4 {
 	};
 
 	// Fumen
-	struct Idx { std::vector<uint32_t>			wIdx, hIdx, eIdx;										};
-	struct Duo {
-		union  { float a; uint32_t aa; };
-		union  { float b; uint32_t bb; };
+	union Duo {
+		uint32_t								whole;
+		struct {
+			union							  { float a;  uint32_t aa;  };
+			union							  { float b;  uint32_t bb;  };
+		};
 	};
+	struct Idx  { std::vector<uint32_t>			wIdx, hIdx, eIdx;										};
 	struct Wish {
 		std::vector<PosNode>					nodes;
 		std::vector<WishChild>					wishChilds;
