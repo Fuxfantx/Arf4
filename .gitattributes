@@ -1,0 +1,7 @@
+*.h linguist-language=cpp
+*.script_api linguist-language=YAML
+
+include/bitsery/** linguist-vendored
+include/ease_constants.h linguist-generated
+
+ext.manifest linguist-language=YAML
