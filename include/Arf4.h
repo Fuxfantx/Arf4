@@ -60,7 +60,7 @@ namespace Arf4 {
 
 	// Fumen
 	union Duo {
-		uint32_t								whole;
+		uint64_t								whole;
 		struct {
 			union							  { float a;  uint32_t aa;  };
 			union							  { float b;  uint32_t bb;  };
