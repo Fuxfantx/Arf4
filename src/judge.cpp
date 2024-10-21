@@ -174,7 +174,7 @@ inline void JudgeArfInternal(const Duo* const validTouches, const bool anyPresse
 							 *  · (currentDeltaMs + deltaMs) > 0  -->  |currentDeltaMs| > |deltaMs|
 							 *  · (currentDeltaMs + deltaMs) < 0  -->  |currentDeltaMs| < |deltaMs|
 							 */
-							if( currentHint.deltaMs < -currentDeltaMs /* PENDING == -128, included */ )
+							if( currentHint.deltaMs < -currentDeltaMs /* PENDING == -127, included */ )
 								currentHint.deltaMs = currentDeltaMs;
 						continue;
 					}
