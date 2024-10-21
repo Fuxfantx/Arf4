@@ -41,7 +41,7 @@ inline bool testAnmitsuSafety(const float x, const float y) {
 				return false;
 
 	// Register "Safe when Anmitsu" Objects
-	Arf.blocked.push_back({ .a=x, .b=y });   // I hate the copying here
+	Arf.blocked.push_back({ .a=x, .b=y });   // I hate the copying here.
 	return true;
 }
 
@@ -91,20 +91,18 @@ inline void scanEcho(Echo& currentEcho, const int32_t currentDeltaMs, const Duo*
 		/* [2] Echo Behavior -- Drag Path */
 		case NJUDGED_LIT:
 			if(! hasTouchNear(currentEcho.toX, currentEcho.toY, validTouches) ) {
-				if( currentDeltaMs >= -100  &&  currentDeltaMs <= 100 ) {
-					currentEcho.status = HIT;			 currentEcho.deltaMs = currentDeltaMs;
+				if( currentDeltaMs >= -100  &&  currentDeltaMs <= 100 )
+					currentEcho.status = HIT,			 currentEcho.deltaMs = currentDeltaMs,
 					Arf.eHit += currentEcho.isReal;
-				}
 				else
 					currentEcho.status = NJUDGED;
 			}
 			break;
 		case SPECIAL_LIT:
 			if(! hasTouchNear(currentEcho.toX, currentEcho.toY, validTouches) ) {
-				if( currentDeltaMs >= -100  &&  currentDeltaMs <= 100 ) {
-					currentEcho.status = HIT;			 currentEcho.deltaMs = currentDeltaMs;
-					Arf.eHit += currentEcho.isReal;		 Arf.spJudged++;
-				}
+				if( currentDeltaMs >= -100  &&  currentDeltaMs <= 100 )
+					currentEcho.status = HIT,			 currentEcho.deltaMs = currentDeltaMs,
+					Arf.eHit += currentEcho.isReal,		 Arf.spJudged++;
 				else
 					currentEcho.status = SPECIAL;
 			}
@@ -131,7 +129,7 @@ inline void JudgeArfInternal(const Duo* const validTouches, const bool anyPresse
 					const bool safeToAnmitsu = testAnmitsuSafety(currentEcho.toX, currentEcho.toY);
 
 					/* [1] Tap Behavior -- Earliest & Anmitsu Path */
-					// No Pierce Path here. Either Path of [2] should be applied.
+					// No Pierce Path here; for Echoes, either Path of [2] should be applied instead.
 					if( minJudgedMs ) {
 						if( minJudgedMs != currentEcho.toMs )				 // Consider if maxDt < 0
 							if( !safeToAnmitsu || currentDeltaMs < Arf.minDt || currentDeltaMs > Arf.maxDt )
@@ -217,17 +215,18 @@ inline void JudgeArfSweep() {
 	for( const auto i : Arf.idxGroups[Arf.msTime>>9].eIdx ) {							// Echo //
 		auto& currentEcho = Arf.echo[i];
 		const int32_t currentDeltaMs = Arf.msTime - currentEcho.toMs;
-		if( currentDeltaMs > 470 ) {}
-		else if( currentDeltaMs > 100 ) {										   /* [3] Lost Behavior */
-			if( currentEcho.status == NJUDGED  ||  currentEcho.status == SPECIAL )
-				currentEcho.status = LOST, Arf.lost += currentEcho.isReal;
-		}
+		if( currentDeltaMs > 255 ) {}
+		else if( currentDeltaMs > 100 )											   /* [3] Lost Behavior */
+			switch( currentEcho.status ) {
+				case NJUDGED:	case NJUDGED_LIT:
+				case SPECIAL:	case SPECIAL_LIT:
+					currentEcho.status = LOST, Arf.lost += currentEcho.isReal;
+				default:;   // break omitted
+			}
 		else if( currentDeltaMs >= 0 )								 /* [2] Echo Behavior -- Catch Path */
 			switch( currentEcho.status ) {
 				case SPECIAL_LIT:
-					currentEcho.status = HIT_LIT, currentEcho.deltaMs = currentDeltaMs;
-					Arf.eHit += currentEcho.isReal, Arf.spJudged++;
-					break;
+					Arf.spJudged++;   // No break here
 				case NJUDGED_LIT:
 					currentEcho.status = HIT_LIT, currentEcho.deltaMs = currentDeltaMs;
 					Arf.eHit += currentEcho.isReal;
@@ -238,14 +237,12 @@ inline void JudgeArfSweep() {
 	for( const auto i : Arf.idxGroups[Arf.msTime>>9].hIdx ) {							// Hint //
 		auto& currentHint = Arf.hint[i];
 		const int32_t currentDeltaMs = Arf.msTime - currentHint.ms;
-		if( currentDeltaMs > 470 ) {}
+		if( currentDeltaMs > 255 ) {}
 		else if( currentDeltaMs > 100 )											   /* [3] Lost Behavior */
 			switch( currentHint.status ) {
-				case SPECIAL:
-				case NJUDGED:
-				case SPECIAL_LIT:
-				case NJUDGED_LIT:
-					++Arf.lost, currentHint.status = LOST;
+				case NJUDGED:	case NJUDGED_LIT:
+				case SPECIAL:	case SPECIAL_LIT:
+					currentHint.status = LOST, Arf.lost++;
 				default:;   // break omitted
 			}
 		else if( currentDeltaMs >= Arf.maxDt ) {			/* [1] Tap Behavior -- Pierce Path, Step II */
@@ -271,7 +268,10 @@ inline void JudgeArfSweep() {
 
 Arf4_API JudgeArf(lua_State* L) {
 	/* Usage:
-	 * Arf4.JudgeArf(x_set, y_set, mask)   -- [0b00] Invalid, [0b01] Pressed, [0b10] OnScreen, [0b11] Released
+	 * Arf4.JudgeArf(x_set, y_set, mask)
+	 *
+	 * Mask Design:
+	 * [0b00] Invalid, [0b01] Pressed, [0b10] OnScreen, [0b11] Released
 	 */
 	lua_Integer mask = luaL_checkinteger(L, 3);
 	uint8_t whichTouch = 0, anyPressed = false, anyReleased = false;
