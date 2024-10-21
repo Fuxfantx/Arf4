@@ -35,7 +35,7 @@ namespace bitsery {
 	Inout( Echo,
 		inout.ext(its.fromMs, CV);	inout.ext(its.toMs, CV);		inout.ext(its.ci, ES);
 		inout.ext(its.fromX, PX);	inout.ext(its.toX, PX);			inout.ext(its.ce, ES);
-		inout.ext(its.fromY, PY);	inout.ext(its.toY, PY);			inout.ext(its.isPseudo, CV);
+		inout.ext(its.fromY, PY);	inout.ext(its.toY, PY);			inout.ext(its.isReal, CV);
 		inout.ext(its.ease, CV);	inout.ext(its.status, CV);   // echo.status -> [0]Non-Special [1]Special
 	)
 
@@ -124,8 +124,8 @@ Arf4_API LoadArf(lua_State* L) {
 
 	// Initialize
 	decodeState.object( Arf={} );								// Lazy clear only when the buffer
-	Arf.minDt = InputDelta - 37;										//   is loaded successfully.
-	Arf.maxDt = InputDelta + 37;
+	Arf.maxDt = ( InputDelta>63 ? 63 : InputDelta ) + 37;				//   is loaded successfully.
+	Arf.minDt = Arf.maxDt - 74;
 
 	for( auto& deltaGroup : Arf.deltaGroups ) {
 		for( size_t i=1, l=deltaGroup.nodes.size(); i<l; ++i ) {

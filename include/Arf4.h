@@ -9,7 +9,7 @@ namespace Arf4 {
 	enum EaseType		{	 STATIC = 0, LINEAR, INSINE, OUTSINE, INQUAD, OUTQUAD,
 						  CLOCKWISE = 5, COUNTERCLIOCKWISE = 10, CPOSITIVE = 5, CNEGATIVE = 10			};
 	enum Status			{	NJUDGED = 0, NJUDGED_LIT, EARLY, EARLY_LIT, HIT, HIT_LIT, LATE, LATE_LIT,
-							AUTO, AUTO_LIT, SPECIAL, SPECIAL_LIT, SPECIAL_AUTO, SPECIAL_AUTO_LIT, LOST	};
+							AUTO, SPECIAL, SPECIAL_LIT, SPECIAL_AUTO, LOST, PENDING = -128				};
 
 	// Primitive
 	struct PosNode {
@@ -22,11 +22,11 @@ namespace Arf4 {
 	struct Hint {
 		float		x, y;
 		uint32_t	ms:20, status:4;							// Max 1048575ms -> 17.47625 mins
-		int32_t		deltaMs:8;
+		int32_t		deltaMs:8 = PENDING;
 	};
 	struct Echo {
 		float		fromX, fromY, toX, toY, ci, ce = 1;
-		uint32_t	fromMs:27/*7*/, ease:4, isPseudo:1;
+		uint32_t	fromMs:27/*7*/, ease:4, isReal:1;
 		uint32_t	toMs:20, status:4;
 		int32_t		deltaMs:8;
 		/*--------------------------------*/
@@ -106,28 +106,31 @@ extern  int8_t		 InputDelta;
 namespace Ar {
 	using namespace Arf4;
 
-	 Duo	GetSinCosByDegree(double degree);				/* Internal */
-	void	PrecalculatePosNode(PosNode& currentPn);
-	void	PrecalculateEcho(Echo& echo);
-	void	JudgeArfInternal();
-	void	JudgeArfSweep();
+	/* Internal */
+	 Duo  GetSinCosByDegree(double degree);
+	void  PrecalculatePosNode(PosNode& currentPn);
+	void  PrecalculateEcho(Echo& echo);
+	void  JudgeArfSweep();
 
-	 int	LoadArf(lua_State* L);							/* Fumen Operations */
-	 int	ExportArf(lua_State* L);
-	 int	OrganizeArf(lua_State* L);
-	 int	UpdateArf(lua_State* L);
-	 int	JudgeArf(lua_State* L);
+	/* Fumen Operations */
+	 int  LoadArf(lua_State* L);
+	 int  ExportArf(lua_State* L);
+	 int  OrganizeArf(lua_State* L);
+	 int  UpdateArf(lua_State* L);
+	 int  JudgeArf(lua_State* L);
 
-	 int	SetCam(lua_State* L);							/* Fumen Utils */
-	 int	SetBound(lua_State* L);
-	 int	SetDaymode(lua_State* L);
-	 int	SetObjectSize(lua_State* L);
-	 int	SetJudgeRange(lua_State* L);
-	 int	GetJudgeStat(lua_State* L);
+	/* Fumen Utils */
+	 int  SetCam(lua_State* L);
+	 int  SetBound(lua_State* L);
+	 int  SetDaymode(lua_State* L);
+	 int  SetObjectSize(lua_State* L);
+	 int  SetJudgeRange(lua_State* L);
+	 int  GetJudgeStat(lua_State* L);
 
-	 int	NewTable(lua_State* L);							/* Other Utils */
-	 int	SimpleEaseLua(lua_State* L);
-	 int	PartialEaseLua(lua_State* L);
-	 int	DoHapticFeedback(lua_State* L);
-	 int	SetInputDelta(lua_State* L);
+	/* Other Utils */
+	 int  NewTable(lua_State* L);
+	 int  SimpleEaseLua(lua_State* L);
+	 int  PartialEaseLua(lua_State* L);
+	 int  DoHapticFeedback(lua_State* L);
+	 int  SetInputDelta(lua_State* L);
 }
