@@ -13,9 +13,10 @@ namespace Arf4 {
 
 	// Primitive
 	struct PosNode {
-		int32_t		ms:27/*6*/, ease:5;
+		int32_t		ms:28/*7*/;
+		uint32_t	ease:4;
 		float		x, y, ci, ce = 1;							// Center (cdx:0, cdy:0)
-		/*--------------------------------s*/					// Some Partial-Ease calculation results
+		/*--------------------------------*/					// Some Partial-Ease calculation results
 		float		xFci, xFce, xDnm;							//   are cached here to improve the ease
 		float		yFci, yFce, yDnm;							//   performance.
 	};
@@ -109,8 +110,8 @@ namespace Ar {
 	/* Internal */
 	 Duo  InterpolateEcho(const Echo& echo, uint32_t currentMs);
 	 Duo  InterpolatePosNode(const PosNode& currentPn, uint32_t currentMs, const PosNode& nextPn);
-	void  PrecalculateEcho(Echo& currentPn);
 	void  PrecalculatePosNode(PosNode& currentPn);
+	void  PrecalculateEcho(Echo& currentPn);
 	void  JudgeArfSweep();
 
 	/* Fumen Operations */
@@ -130,6 +131,7 @@ namespace Ar {
 
 	/* Other Utils */
 	 int  NewTable(lua_State* L);
+	 int  PushNullPtr(lua_State* L);
 	 int  SimpleEaseLua(lua_State* L);
 	 int  PartialEaseLua(lua_State* L);
 	 int  DoHapticFeedback(lua_State* L);

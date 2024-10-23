@@ -98,11 +98,11 @@ inline Duo getSinCosByDegree(const double degree) {   // Redundant "else" keywor
 	}
 }
 
-inline void PrecalculateEcho(Echo& echo) {
-	return precalculate(echo);
-}
 inline void PrecalculatePosNode(PosNode& currentPn) {
 	return precalculate(currentPn);
+}
+inline void PrecalculateEcho(Echo& echo) {
+	return precalculate(echo);
 }
 
 inline Duo InterpolateEcho(const Echo& echo, const uint32_t currentMs) {
@@ -210,8 +210,8 @@ Arf4_API SimpleEaseLua(lua_State* L) {
 	const lua_Number from  = luaL_checknumber(L, 1);
 	const lua_Number delta = luaL_checknumber(L, 3) - from;
 		  lua_Number ratio = luaL_checknumber(L, 4);
-	if		(ratio < 0)		ratio = 0;
-	else if	(ratio > 1)		ratio = 1;
+	if		(ratio < 0)		 ratio = 0;
+	else if (ratio > 1)		 ratio = 1;
 	return lua_pushnumber(L,
 		from + delta * calculateEasedRatio( ratio, luaL_checkinteger(L, 2) )
 	), 1;
@@ -221,8 +221,8 @@ Arf4_API PartialEaseLua(lua_State* L) {
 	/* Usage:
 	 * local result = Arf4.PartialEase(from, type, to, ratio, curve_init, curve_end)
 	 */
-	const uint32_t type = luaL_checkinteger(L, 2);
-	const double from = luaL_checknumber(L, 1), to = luaL_checknumber(L, 3);
+	const uint32_t	type = luaL_checkinteger(L, 2);
+	const double	from = luaL_checknumber(L, 1), to = luaL_checknumber(L, 3);
 
 	// Calculate fci & fce
 	lua_Number curve_init = luaL_checknumber(L, 5);
@@ -248,4 +248,99 @@ Arf4_API PartialEaseLua(lua_State* L) {
 }
 
 /* Fumen Utils */
+Arf4_API SetCam(lua_State *L) {
+	/* Usage:
+	 * Arf4.SetCam(xscale, yscale, xdelta, ydelta, rotdeg)
+	 */
+	const Duo sinCos = getSinCosByDegree( luaL_checknumber(L, 5) );
+	Arf.xScale = luaL_checknumber(L, 1);		Arf.yScale = luaL_checknumber(L, 2);
+	Arf.xDelta = luaL_checknumber(L, 3);		Arf.yDelta = luaL_checknumber(L, 4);
+	return Arf.rotSin = sinCos.a, Arf.rotCos = sinCos.b, 0;
+}
+
+#ifndef AR_BUILD_VIEWER
+Arf4_API SetBound(lua_State* L) {
+	/* Usage:
+	 * Arf4.SetBound(l, r, u, d)
+	 */
+	Arf.boundL = lua_isnumber(L, 1) ? lua_tonumber(L, 1) : -36 ;
+	Arf.boundR = lua_isnumber(L, 2) ? lua_tonumber(L, 2) : 1836 ;
+	Arf.boundU = lua_isnumber(L, 3) ? lua_tonumber(L, 3) : 1116 ;
+	Arf.boundD = lua_isnumber(L, 4) ? lua_tonumber(L, 4) : -36 ;
+	if( Arf.boundL > Arf.boundR )		Arf.boundL = Arf.boundR;
+	if( Arf.boundD > Arf.boundU )		Arf.boundD = Arf.boundU;
+	return 0;
+}
+
+Arf4_API SetDaymode(lua_State* L) {
+	/* Usage:
+	 * Arf4.SetDaymode(is_daymode)
+	 */
+	return Arf.daymode = lua_toboolean(L, 1), 0;
+}
+
+Arf4_API SetInputDelta(lua_State* L) {
+	/* Usage:
+	 * Arf4.SetInputDelta(ms)   -- [-63,63]
+	 */
+	const int8_t inputDeltaParam = luaL_checkinteger(L, 1);
+	InputDelta = inputDeltaParam > 63 ? 63 : inputDeltaParam < -63 ? -63 : inputDeltaParam;
+
+	Arf.minDt = InputDelta - Arf.judgeRange;		Arf.minDt = Arf.minDt < -100 ? -100 : Arf.minDt ;
+	Arf.maxDt = InputDelta + Arf.judgeRange;		Arf.maxDt = Arf.maxDt >  100 ?  100 : Arf.maxDt ;
+	return 0;
+}
+
+Arf4_API SetJudgeRange(lua_State* L) {
+	/* Usage:
+	 * Arf4.SetJudgeRange(ms)   -- [1,100]
+	 */
+	const uint8_t rangeParam = luaL_checkinteger(L, 1);
+	Arf.judgeRange = rangeParam > 99 ? 100 : rangeParam < 1 ? 1 : rangeParam;
+
+	Arf.minDt = InputDelta - Arf.judgeRange;		Arf.minDt = Arf.minDt < -100 ? -100 : Arf.minDt ;
+	Arf.maxDt = InputDelta + Arf.judgeRange;		Arf.maxDt = Arf.maxDt >  100 ?  100 : Arf.maxDt ;
+	return 0;
+}
+
+Arf4_API SetObjectSize(lua_State* L) {
+	/* Usage:
+	 * Arf4.SetObjectSize(size)   -- min 2.88
+	 * Arf4.SetObjectSize(x, y)
+	 */
+	lua_Number scriptX = luaL_checknumber(L, 1);
+	lua_Number scriptY = lua_isnumber(L, 2) ? lua_tonumber(L, 2) : scriptX;
+	if( scriptX < 2.88 )		scriptX = 2.88;
+	if( scriptY < 2.88 )		scriptY = 2.88;
+	return Arf.objectSizeX = scriptX * 112.5, Arf.objectSizeY = scriptY * 112.5, 0;
+}
+
+Arf4_API GetJudgeStat(lua_State* L) {
+	/* Usage:
+	 * local hint_hit, echo_hit, early, late, lost, count_of_judged_special_object, object_count
+	 *     = Arf4.GetJudgeStat()
+	 */
+	return lua_pushinteger(L, Arf.hHit), lua_pushinteger(L, Arf.eHit), lua_pushinteger(L, Arf.early),
+		   lua_pushinteger(L, Arf.late), lua_pushinteger(L, Arf.lost), lua_pushinteger(L, Arf.spJudged),
+		   lua_pushnumber(L, Arf.objectCount), 7;
+}
+
 /* Other Utils */
+Arf4_API DoHapticFeedback(lua_State* L) {
+	return 0;
+}
+
+Arf4_API PushNullPtr(lua_State* L) {
+	/* Usage:
+	 * local nullptr_userdata = Arf4.PushNullPtr()
+	 */
+	return lua_pushlightuserdata(L, nullptr), 1;
+}
+#endif
+
+Arf4_API NewTable(lua_State* L) {
+	/* Usage:
+	 * local preallocated_table = Arf4.NewTable(narr, nrec)
+	 */
+	return lua_createtable( L, luaL_checkinteger(L, 1), luaL_checkinteger(L, 2) ), 1;
+}
