@@ -28,8 +28,8 @@ static const luaL_reg Arf4Lib[] = {
 inline dmExtension::Result Arf4LuaInit(dmExtension::Params* p) {
 	/* Defold Restriction:
 	 * Must Get the Lua Stack Balanced in the Initiation Process. */
-	luaL_register(p->m_L, "Arf4", Arf4Lib);		lua_pop(p->m_L, 1);
-	return dmExtension::RESULT_OK;
+	luaL_register( p->m_L, "Arf4", Arf4Lib );
+	return lua_pop(p->m_L, 1), dmExtension::RESULT_OK;
 }
 inline dmExtension::Result Arf4APPOK(dmExtension::AppParams* params) {
 	return dmExtension::RESULT_OK;

@@ -13,9 +13,9 @@ namespace Arf4 {
 
 	// Primitive
 	struct PosNode {
-		uint32_t	ms:28/*8*/, ease:4;
+		int32_t		ms:27/*6*/, ease:5;
 		float		x, y, ci, ce = 1;							// Center (cdx:0, cdy:0)
-		/*--------------------------------*/					// Some Partial-Ease calculation results
+		/*--------------------------------s*/					// Some Partial-Ease calculation results
 		float		xFci, xFce, xDnm;							//   are cached here to improve the ease
 		float		yFci, yFce, yDnm;							//   performance.
 	};
@@ -48,8 +48,8 @@ namespace Arf4 {
 
 	// WishChild
 	struct AngleNode {
-		uint16_t	distance:12 = 7 << 8;						// [0,16)
-		uint16_t	ease:4;
+		uint16_t	distance:13 = 7 << 9;						// [0,16)
+		uint16_t	ease:3;
 		int16_t		degree;
 	};
 	struct WishChild {
@@ -107,9 +107,10 @@ namespace Ar {
 	using namespace Arf4;
 
 	/* Internal */
-	 Duo  GetSinCosByDegree(double degree);
+	 Duo  InterpolateEcho(const Echo& echo, uint32_t currentMs);
+	 Duo  InterpolatePosNode(const PosNode& currentPn, uint32_t currentMs, const PosNode& nextPn);
+	void  PrecalculateEcho(Echo& currentPn);
 	void  PrecalculatePosNode(PosNode& currentPn);
-	void  PrecalculateEcho(Echo& echo);
 	void  JudgeArfSweep();
 
 	/* Fumen Operations */
