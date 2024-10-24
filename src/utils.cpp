@@ -203,50 +203,6 @@ inline Duo InterpolatePosNode(const PosNode& currentPn, const uint32_t currentMs
 	}
 }
 
-Arf4_API SimpleEaseLua(lua_State* L) {
-	/* Usage:
-	 * local result = Arf4.SimpleEase(from, type, to, ratio)
-	 */
-	const lua_Number from  = luaL_checknumber(L, 1);
-	const lua_Number delta = luaL_checknumber(L, 3) - from;
-		  lua_Number ratio = luaL_checknumber(L, 4);
-	if		(ratio < 0)		 ratio = 0;
-	else if (ratio > 1)		 ratio = 1;
-	return lua_pushnumber(L,
-		from + delta * calculateEasedRatio( ratio, luaL_checkinteger(L, 2) )
-	), 1;
-}
-
-Arf4_API PartialEaseLua(lua_State* L) {
-	/* Usage:
-	 * local result = Arf4.PartialEase(from, type, to, ratio, curve_init, curve_end)
-	 */
-	const uint32_t	type = luaL_checkinteger(L, 2);
-	const double	from = luaL_checknumber(L, 1), to = luaL_checknumber(L, 3);
-
-	// Calculate fci & fce
-	lua_Number curve_init = luaL_checknumber(L, 5);
-	lua_Number curve_end = luaL_checknumber(L, 6);
-	if		(curve_init < 0)			curve_init = 0;
-	else if (curve_init > 1)			curve_init = 1;
-	if		(curve_end < 0)				curve_end = 0;
-	else if (curve_end > 1)				curve_end = 1;
-	if		(curve_init >= curve_end)	curve_init = 0,
-										curve_end = 1;
-	const float fci = calculateEasedRatio(curve_init, type);
-	const float fce = calculateEasedRatio(curve_end, type);
-
-	// Return the Ease Result
-	lua_Number actualRatio = curve_init + (curve_end - curve_init) * luaL_checknumber(L, 4);
-	if		(actualRatio < 0)			actualRatio = 0;
-	else if (actualRatio > 1)			actualRatio = 1;
-
-	const float dnmFceFci   = 1.0 / (fce - fci);
-	const float actualFrom  = (to * fce - from * fci) * dnmFceFci;
-	const float actualDelta = (to - from) * dnmFceFci;
-	return lua_pushnumber(L, actualFrom + actualDelta * calculateEasedRatio(actualRatio, type) ), 1;
-}
-
 /* Fumen Utils */
 Arf4_API SetCam(lua_State *L) {
 	/* Usage:
@@ -326,7 +282,82 @@ Arf4_API GetJudgeStat(lua_State* L) {
 }
 
 /* Other Utils */
+Arf4_API SimpleEaseLua(lua_State* L) {
+	/* Usage:
+	 * local result = Arf4.SimpleEase(from, type, to, ratio)
+	 */
+	const lua_Number from  = luaL_checknumber(L, 1);
+	const lua_Number delta = luaL_checknumber(L, 3) - from;
+	lua_Number ratio = luaL_checknumber(L, 4);
+	if		(ratio < 0)		 ratio = 0;
+	else if (ratio > 1)		 ratio = 1;
+	return lua_pushnumber(L,
+		from + delta * calculateEasedRatio( ratio, luaL_checkinteger(L, 2) )
+	), 1;
+}
+
+Arf4_API PartialEaseLua(lua_State* L) {
+	/* Usage:
+	 * local result = Arf4.PartialEase(from, type, to, ratio, curve_init, curve_end)
+	 */
+	const uint32_t	type = luaL_checkinteger(L, 2);
+	const double	from = luaL_checknumber(L, 1), to = luaL_checknumber(L, 3);
+
+	// Calculate fci & fce
+	lua_Number curve_init = luaL_checknumber(L, 5);
+	lua_Number curve_end = luaL_checknumber(L, 6);
+	if		(curve_init < 0)			curve_init = 0;
+	else if (curve_init > 1)			curve_init = 1;
+	if		(curve_end < 0)				curve_end = 0;
+	else if (curve_end > 1)				curve_end = 1;
+	if		(curve_init >= curve_end)	curve_init = 0,
+										curve_end = 1;
+	const float fci = calculateEasedRatio(curve_init, type);
+	const float fce = calculateEasedRatio(curve_end, type);
+
+	// Return the Ease Result
+	lua_Number actualRatio = curve_init + (curve_end - curve_init) * luaL_checknumber(L, 4);
+	if		(actualRatio < 0)			actualRatio = 0;
+	else if (actualRatio > 1)			actualRatio = 1;
+
+	const float dnmFceFci   = 1.0 / (fce - fci);
+	const float actualFrom  = (to * fce - from * fci) * dnmFceFci;
+	const float actualDelta = (to - from) * dnmFceFci;
+	return lua_pushnumber(L, actualFrom + actualDelta * calculateEasedRatio(actualRatio, type) ), 1;
+}
+
 Arf4_API DoHapticFeedback(lua_State* L) {
+	/* Usage:
+	 * Arf4.DoHapticFeedback()
+	 */
+#if defined(DM_PLATFORM_ANDROID)
+	JNIEnv* pEnv;
+	JavaVM* pVm = dmGraphics::GetNativeAndroidJavaVM();
+			pVm-> AttachCurrentThread(&pEnv, NULL);
+	jobject pActivity = dmGraphics::GetNativeAndroidActivity();
+	jstring targetClassJstr = pEnv->NewStringUTF("arf4.utils.Haptic");
+	jclass  targetClass = (jclass)pEnv->CallObjectMethod(
+		/* Object */ pEnv->CallObjectMethod(
+			pActivity,
+			pEnv->GetMethodID( pEnv->FindClass("android/app/NativeActivity"), "getClassLoader",
+											   "()Ljava/lang/ClassLoader;" )
+		),
+		/* Method */ pEnv->GetMethodID( pEnv->FindClass("java/lang/ClassLoader"), "loadClass",
+										   "(Ljava/lang/String;)Ljava/lang/Class;" ),
+		/* Arg */	 targetClassJstr
+	);
+	pEnv -> CallStaticVoidMethod(
+		/* Object */ targetClass,
+		/* Method */ pEnv->GetStaticMethodID( targetClass, "DoHapticFeedback", "(Landroid/app/Activity;)V" ),
+		/* Arg */	 pActivity
+	);
+	pEnv -> ExceptionClear();
+	pEnv -> DeleteLocalRef(targetClassJstr);
+	pVm  -> DetachCurrentThread();
+#elif defined(DM_PLATFORM_IOS)
+	void DoHapticFeedbackInternal();
+		 DoHapticFeedbackInternal();
+#endif
 	return 0;
 }
 
