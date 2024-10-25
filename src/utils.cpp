@@ -326,35 +326,23 @@ Arf4_API PartialEaseLua(lua_State* L) {
 	return lua_pushnumber(L, actualFrom + actualDelta * calculateEasedRatio(actualRatio, type) ), 1;
 }
 
+#ifdef DM_PLATFORM_ANDROID
+extern JavaVM* pVm;				extern jclass	 hapticClass;
+extern jobject pActivity;		extern jmethodID hapticMethod;
+void DoHapticFeedbackInternal() {
+	JNIEnv* pEnv;
+	pVm  -> AttachCurrentThread(&pEnv, NULL);
+	pEnv -> CallStaticVoidMethod(hapticClass, hapticMethod, pActivity);		pEnv -> ExceptionClear();
+	pVm  -> DetachCurrentThread();
+	return 0;
+}
+#endif
+
 Arf4_API DoHapticFeedback(lua_State* L) {
 	/* Usage:
 	 * Arf4.DoHapticFeedback()
 	 */
-#if defined(DM_PLATFORM_ANDROID)
-	JNIEnv* pEnv;
-	JavaVM* pVm = dmGraphics::GetNativeAndroidJavaVM();
-			pVm-> AttachCurrentThread(&pEnv, NULL);
-	jobject pActivity = dmGraphics::GetNativeAndroidActivity();
-	jstring targetClassJstr = pEnv->NewStringUTF("arf4.utils.Haptic");
-	jclass  targetClass = (jclass)pEnv->CallObjectMethod(
-		/* Object */ pEnv->CallObjectMethod(
-			pActivity,
-			pEnv->GetMethodID( pEnv->FindClass("android/app/NativeActivity"), "getClassLoader",
-											   "()Ljava/lang/ClassLoader;" )
-		),
-		/* Method */ pEnv->GetMethodID( pEnv->FindClass("java/lang/ClassLoader"), "loadClass",
-										   "(Ljava/lang/String;)Ljava/lang/Class;" ),
-		/* Arg */	 targetClassJstr
-	);
-	pEnv -> CallStaticVoidMethod(
-		/* Object */ targetClass,
-		/* Method */ pEnv->GetStaticMethodID( targetClass, "DoHapticFeedback", "(Landroid/app/Activity;)V" ),
-		/* Arg */	 pActivity
-	);
-	pEnv -> ExceptionClear();
-	pEnv -> DeleteLocalRef(targetClassJstr);
-	pVm  -> DetachCurrentThread();
-#elif defined(DM_PLATFORM_IOS)
+#if defined(DM_PLATFORM_IOS) || defined(DM_PLATFORM_ANDROID)
 	void DoHapticFeedbackInternal();
 		 DoHapticFeedbackInternal();
 #endif
