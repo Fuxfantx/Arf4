@@ -5,7 +5,7 @@
 #include <dmsdk/sdk.h>
 
 namespace Arf4 {
-	enum TableIndex		{		WGO = 2, HGO, EGO, EHGO, AGOL, AGOR, WTINT, HTINT, ETINT, ATINT			};
+	enum TableIndex		{		WGO = 3, HGO, EGO, EHGO, AGOL, AGOR, WTINT, HTINT, ETINT, ATINT			};
 	enum EaseType		{	 STATIC = 0, LINEAR, INSINE, OUTSINE, INQUAD, OUTQUAD,
 						  CLOCKWISE = 5, COUNTERCLIOCKWISE = 10, CPOSITIVE = 5, CNEGATIVE = 10			};
 	enum Status			{	NJUDGED = 0, NJUDGED_LIT, EARLY, EARLY_LIT, HIT, HIT_LIT, LATE, LATE_LIT,
@@ -43,7 +43,7 @@ namespace Arf4 {
 	};
 	struct DeltaGroup {
 		std::vector<DeltaNode>					nodes;
-		std::vector<DeltaNode>::iterator		it;
+		std::vector<DeltaNode>::const_iterator	it;
 		double									dt;
 	};
 
@@ -55,7 +55,7 @@ namespace Arf4 {
 	};
 	struct WishChild {
 		std::vector<AngleNode>					aNodes;
-		std::vector<AngleNode>::iterator		aIt;
+		std::vector<AngleNode>::const_iterator	aIt;
 		double									dt;
 	};
 
@@ -72,7 +72,7 @@ namespace Arf4 {
 		std::vector<PosNode>					nodes;
 		std::vector<WishChild>					wishChilds;
 		/*--------------------------------*/
-		std::vector<PosNode>::iterator			pIt;
+		std::vector<PosNode>::const_iterator	pIt;
 		std::vector<WishChild>::iterator		cIt;
 		/*--------------------------------*/
 		uint64_t								deltaGroup;
@@ -97,7 +97,7 @@ namespace Arf4 {
 		float									xScale = 1, yScale = 1, xDelta, yDelta, rotSin, rotCos = 1;
 		float									boundL = -36, boundR = 1836, boundU = 1116, boundD = -36;
 		//--------------------------------//
-		std::unordered_map<uint64_t, uint16_t>	lastWgo;
+		std::unordered_map<uint64_t, uint16_t>	lastWgo, lastEhgo;
 		std::vector<Duo>						blocked;
 	};
 }
@@ -106,8 +106,8 @@ namespace Ar {
 	using namespace Arf4;
 
 	/* Internal */
-	 Duo  InterpolateEcho(const Echo& echo, uint32_t currentMs);
-	 Duo  InterpolatePosNode(const PosNode& currentPn, uint32_t currentMs, const PosNode& nextPn);
+	 Duo  InterpolateEcho(const Echo& echo);
+	 Duo  InterpolatePosNode(const PosNode& currentPn, const PosNode& nextPn);
 	void  PrecalculatePosNode(PosNode& currentPn);
 	void  PrecalculateEcho(Echo& currentPn);
 	void  JudgeArfSweep();

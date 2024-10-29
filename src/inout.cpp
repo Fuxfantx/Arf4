@@ -133,17 +133,17 @@ Arf4_API LoadArf(lua_State* L) {
 				  auto& thisNode = deltaGroup.nodes[i];
 			thisNode.baseDt = lastNode.baseDt + (thisNode.initMs - lastNode.initMs) * lastNode.ratio;
 		}
-		deltaGroup.it = deltaGroup.nodes.begin();
+		deltaGroup.it = deltaGroup.nodes.cbegin();
 	}
 
 	for( auto& wish: Arf.wish ) {
-		wish.pIt = wish.nodes.begin();
+		wish.pIt = wish.nodes.cbegin();
 		for( size_t i=0, l=wish.nodes.size()-1; i<l; ++i )
 			PrecalculatePosNode( wish.nodes[i] );
 
 		wish.cIt = wish.wishChilds.begin();
 		for( auto& c : wish.wishChilds )
-			c.aIt = c.aNodes.begin();
+			c.aIt = c.aNodes.cbegin();
 	}
 
 	if(isAuto) {

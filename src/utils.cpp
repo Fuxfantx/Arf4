@@ -41,13 +41,13 @@ constexpr struct EaseConstants {
  * [Params] from, type, to, ratio, curve_init, curve_end
  * [Return] actualFrom + actualDelta * f( curve_init + (curve_end-curve_init)*ratio )
  */
-inline float calculateEasedRatio(float ratio, const uint8_t type) {
+inline float calculateEasedRatio(const float ratio, const uint8_t type) {
 	switch(type) {
 		case LINEAR:	return ratio;
 		case INSINE:	return C.ratioSin[(uint16_t)(ratio * 1024)];
 		case OUTSINE:	return C.ratioCos[(uint16_t)(ratio * 1024)];
 		case INQUAD:	return ratio * ratio;
-		case OUTQUAD:	return ratio = 1.0f - ratio, 1.0f - ratio * ratio;
+		case OUTQUAD:	return ratio * (2.0f - ratio);
 		default:		return 0;
 	}
 }
@@ -73,8 +73,8 @@ template <typename T> void precalculate(T& object) {
 	}
 }
 
-inline Duo getSinCosByDegree(const double degree) {   // Redundant "else" keywords are remained,
-	if( degree >= 0 ) {								  //   to make the control flow easier to understand.
+Duo getSinCosByDegree(const double degree) {	// Redundant "else" keywords are remained,
+	if( degree >= 0 ) {							//   to make the control flow easier to understand.
 		const uint64_t deg = (uint64_t)(degree * 10.0) % 3600;
 		if(deg > 1800) {
 			if(deg > 2700)	return { .a = -C.degreeSin[3600-deg], .b =  C.degreeCos[3600-deg] };
@@ -105,13 +105,13 @@ inline void PrecalculateEcho(Echo& echo) {
 	return precalculate(echo);
 }
 
-inline Duo InterpolateEcho(const Echo& echo, const uint32_t currentMs) {
+inline Duo InterpolateEcho(const Echo& echo) {
 	if( echo.ease == 0 )   return { .a = echo.fromX, .b = echo.fromY };
 	const float deltaX = echo.toX - echo.fromX,
 				deltaY = echo.toY - echo.fromY;
 
 	if( echo.ease < 6 ) {   // Simple Path
-		const float ratio = calculateEasedRatio( (double)(currentMs - echo.fromMs) / (echo.toMs - echo.fromMs)
+		const float ratio = calculateEasedRatio( (double)(Arf.msTime - echo.fromMs) / (echo.toMs - echo.fromMs)
 											   , echo.ease );
 		return {
 			.a = echo.fromX + deltaX * ratio,
@@ -119,7 +119,7 @@ inline Duo InterpolateEcho(const Echo& echo, const uint32_t currentMs) {
 		};
 	}
 	if( echo.ease < 11 ) {   // Clockwise when dx * dy > 0   -->   x: INSINE  y: OUTSINE
-		float ratio = calculateEasedRatio( (double)(currentMs - echo.fromMs) / (echo.toMs - echo.fromMs)
+		float ratio = calculateEasedRatio( (double)(Arf.msTime - echo.fromMs) / (echo.toMs - echo.fromMs)
 										 , echo.ease - 5 );
 		if( echo.ci == 0  &&  echo.ce == 1 )
 			return {
@@ -136,7 +136,7 @@ inline Duo InterpolateEcho(const Echo& echo, const uint32_t currentMs) {
 		};
 	}
 	/* Default */ {   // Clockwise when dx * dy < 0   -->   x: OUTSINE  y: INSINE
-		float ratio = calculateEasedRatio( (double)(currentMs - echo.fromMs) / (echo.toMs - echo.fromMs)
+		float ratio = calculateEasedRatio( (double)(Arf.msTime - echo.fromMs) / (echo.toMs - echo.fromMs)
 										 , echo.ease - 10 );
 		if( echo.ci == 0  &&  echo.ce == 1 )
 			return {
@@ -154,13 +154,13 @@ inline Duo InterpolateEcho(const Echo& echo, const uint32_t currentMs) {
 	}
 }
 
-inline Duo InterpolatePosNode(const PosNode& currentPn, const uint32_t currentMs, const PosNode& nextPn) {
+inline Duo InterpolatePosNode(const PosNode& currentPn, const PosNode& nextPn) {
 	if( currentPn.ease == 0 )   return { .a = currentPn.x, .b = currentPn.y };
 	const float deltaX = nextPn.x - currentPn.x,
 				deltaY = nextPn.y - currentPn.y;
 
 	if( currentPn.ease < 6 ) {   // Simple Path
-		const float ratio = calculateEasedRatio( (double)(currentMs-currentPn.ms) / (nextPn.ms-currentPn.ms)
+		const float ratio = calculateEasedRatio( (double)(Arf.msTime-currentPn.ms) / (nextPn.ms-currentPn.ms)
 											   , currentPn.ease );
 		return {
 			.a = currentPn.x + deltaX * ratio,
@@ -168,7 +168,7 @@ inline Duo InterpolatePosNode(const PosNode& currentPn, const uint32_t currentMs
 		};
 	}
 	if( currentPn.ease < 11 ) {   // Clockwise when dx * dy > 0   -->   x: INSINE  y: OUTSINE
-		float ratio = calculateEasedRatio( (double)(currentMs-currentPn.ms) / (nextPn.ms-currentPn.ms)
+		float ratio = calculateEasedRatio( (double)(Arf.msTime-currentPn.ms) / (nextPn.ms-currentPn.ms)
 										 , currentPn.ease - 5 );
 		if( currentPn.ci == 0  &&  currentPn.ce == 1 )
 			return {
@@ -185,7 +185,7 @@ inline Duo InterpolatePosNode(const PosNode& currentPn, const uint32_t currentMs
 		};
 	}
 	/* Default */ {   // Clockwise when dx * dy < 0   -->   x: OUTSINE  y: INSINE
-		float ratio = calculateEasedRatio( (double)(currentMs-currentPn.ms) / (nextPn.ms-currentPn.ms)
+		float ratio = calculateEasedRatio( (double)(Arf.msTime-currentPn.ms) / (nextPn.ms-currentPn.ms)
 										 , currentPn.ease - 10 );
 		if( currentPn.ci == 0  &&  currentPn.ce == 1 )
 			return {
