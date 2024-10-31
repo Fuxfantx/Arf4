@@ -11,7 +11,7 @@
  */
 
 using namespace Ar;
-inline bool hasTouchNear(const float x, const float y, const Duo* validTouches) {
+inline bool hasTouchNear(const float x, const float y, const Duo* validTouches) noexcept {
 	const float l = 900.0f + (x * Arf.rotCos - y * Arf.rotSin) * Arf.xScale + Arf.xDelta - Arf.objectSizeX * 0.5f;
 	const float d = 540.0f + (x * Arf.rotSin + y * Arf.rotCos) * Arf.yScale + Arf.yDelta - Arf.objectSizeY * 0.5f;
 	const float r = l + Arf.objectSizeX, u = d + Arf.objectSizeY;
@@ -30,7 +30,7 @@ inline bool hasTouchNear(const float x, const float y, const Duo* validTouches) 
 	return false;
 }
 
-inline bool testAnmitsuSafety(const float x, const float y) {
+inline bool testAnmitsuSafety(const float x, const float y) noexcept {
 	const float l = x - Arf.objectSizeX, d = y - Arf.objectSizeY;
 	const float r = x + Arf.objectSizeX, u = y + Arf.objectSizeY;
 
@@ -45,7 +45,7 @@ inline bool testAnmitsuSafety(const float x, const float y) {
 	return true;
 }
 
-inline void scanHint(Hint& currentHint, const Duo* const validTouches) {
+inline void scanHint(Hint& currentHint, const Duo* const validTouches) noexcept {
 	switch( currentHint.status ) {
 		case NJUDGED:
 		case NJUDGED_LIT:
@@ -73,7 +73,7 @@ inline void scanHint(Hint& currentHint, const Duo* const validTouches) {
 	}
 }
 
-inline void scanEcho(Echo& currentEcho, const int32_t currentDeltaMs, const Duo* const validTouches) {
+inline void scanEcho(Echo& currentEcho, const int32_t currentDeltaMs, const Duo* const validTouches) noexcept {
 	switch( currentEcho.status ) {
 		case NJUDGED:
 			if( hasTouchNear(currentEcho.toX, currentEcho.toY, validTouches) )
@@ -111,7 +111,7 @@ inline void scanEcho(Echo& currentEcho, const int32_t currentDeltaMs, const Duo*
 	}
 }
 
-inline void JudgeArfInternal(const Duo* const validTouches, const bool anyPressed, const bool anyReleased) {
+inline void JudgeArfInternal(const Duo* const validTouches, const bool anyPressed, const bool anyReleased) noexcept {
 	if(anyReleased)								// Only 1 Group will be iterated.
 		Arf.blocked.clear();					// Pay attention when organizing an Arf4 Fumen.
 
@@ -211,7 +211,7 @@ inline void JudgeArfInternal(const Duo* const validTouches, const bool anyPresse
 	}
 }
 
-inline void JudgeArfSweep() {
+inline void JudgeArfSweep() noexcept {
 	for( const auto i : Arf.idxGroups[Arf.msTime>>9].eIdx ) {							// Echo //
 		auto& currentEcho = Arf.echo[i];
 		const int32_t currentDeltaMs = Arf.msTime - currentEcho.toMs;

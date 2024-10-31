@@ -81,7 +81,7 @@ Arf4_API LoadArf(lua_State* L) {
 	/* Usage:
 	 * local before_or_false, objcnt, wgo_required, hgo_required, ego_required = Arf4.LoadArf(path, is_auto)
 	 */
-	lua_pushinteger(L, 2744634527);									// Path -> hash"__script_context"
+	lua_pushnumber(L, 2744634527);									// Path -> hash"__script_context"
 	lua_gettable(L, LUA_GLOBALSINDEX);								// Path -> context
 	const auto pContext = (PseudoContext*)lua_touserdata(L, 3);
 	const auto isAuto = lua_toboolean(L, 2);
@@ -188,5 +188,53 @@ Arf4_API ExportArf(lua_State* L) {
 	const size_t bufSize = encodeState.adapter().writtenBytesCount();
 				 bufSize ? lua_pushlstring( L, (char*)&buf[0], bufSize ) : lua_pushboolean(L, false);
 	return 1;
+}
+#else
+#include <dmsdk/dlib/crypt.h>
+Arf4_API TransformStr(lua_State* L) {
+	/* Usage:
+	 * local output_str = Arf4.TransformStr(input_str, proof_str, is_decode)
+	 */
+	size_t inputSize, proofSize;
+	const char *inputStr = luaL_checklstring(L, 1, &inputSize),
+			   *proofStr = luaL_checklstring(L, 2, &proofSize);
+
+	uint8_t proof16[16], proofMd5[16], proofSha1[20];
+	if( proofSize > 15 )
+		for( size_t i=0; i<16; ++i )
+			proof16[i] = proofStr[i];
+	else {
+		for( size_t i=0; i<proofSize; ++i )
+			proof16[i] = proofStr[i];
+		for( size_t i=proofSize; i<16; ++i )
+			proof16[i] = i*3 + 73;
+	}
+	dmCrypt::HashMd5 ( (const uint8_t*)proofStr, (uint32_t)proofSize, proofMd5  );
+	dmCrypt::HashSha1( (const uint8_t*)proofStr, (uint32_t)proofSize, proofSha1 );
+
+	// Decode //
+	if( lua_toboolean(L, 3) ) {
+		uint32_t originalSize;
+		uint8_t* outputStr = (uint8_t*)malloc( originalSize = inputSize );
+
+		dmCrypt::Base64Decode( (const uint8_t*)inputStr, inputSize, outputStr, &originalSize );
+		Decrypt(dmCrypt::ALGORITHM_XTEA, outputStr, originalSize, proofSha1, 16);
+		Decrypt(dmCrypt::ALGORITHM_XTEA, outputStr, originalSize, proofMd5, 16);
+		Decrypt(dmCrypt::ALGORITHM_XTEA, outputStr, originalSize, proof16, 16);
+
+		return lua_pushlstring( L, (const char*)outputStr, originalSize ), free(outputStr), 1;
+	}
+
+	// Encode //
+	uint32_t outputSize = inputSize * 2;
+	const auto inputStrMutable = (uint8_t*)const_cast<char*>(inputStr),
+					 outputStr = (uint8_t*)malloc(outputSize);
+
+	Encrypt(dmCrypt::ALGORITHM_XTEA, inputStrMutable, inputSize, proof16, 16);
+	Encrypt(dmCrypt::ALGORITHM_XTEA, inputStrMutable, inputSize, proofMd5, 16);
+	Encrypt(dmCrypt::ALGORITHM_XTEA, inputStrMutable, inputSize, proofSha1, 16);
+	dmCrypt::Base64Encode(inputStrMutable, inputSize, outputStr, &outputSize);
+
+	return lua_pushstring( L, (const char*)outputStr ), free(outputStr), 1;
 }
 #endif

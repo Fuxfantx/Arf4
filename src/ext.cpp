@@ -1,7 +1,6 @@
 #include <Arf4.h>
 		  Arf4::Fumen	Arf;
 		  int8_t		InputDelta;
-
 static const luaL_reg Arf4Lib[] = {
 	{"LoadArf", Ar::LoadArf},
 	{"NewTable", Ar::NewTable},
@@ -14,6 +13,7 @@ static const luaL_reg Arf4Lib[] = {
 	{"SimpleEase", Ar::SimpleEaseLua},
 	{"PartialEase", Ar::PartialEaseLua},
 	{"DoHapticFeedback", Ar::DoHapticFeedback},
+	{"TransformStr", Ar::TransformStr},
 	{"PushNullPtr", Ar::PushNullPtr},
 	{"SetBound", Ar::SetBound},
 	{"SetDaymode", Ar::SetDaymode},

@@ -18,7 +18,7 @@ typedef dmVMath::Vector4 v4i, *v4;					typedef dmVMath::Quat Qt;
 
 /* Quat Utils & Render Methods */
 static const Qt maxQuat(0.0f, 0.0f, 0.594822786751341f, 0.803856860617217f);
-static Qt rotationToQuat(const double degree) {
+static Qt rotationToQuat(const double degree) noexcept {
 		  Duo getSinCosByDegree(double);
 	const Duo rads = getSinCosByDegree(degree);
 	return Qt(0.0f, 0.0f, rads.a, rads.b);
@@ -65,6 +65,13 @@ static bool renderAnim(lua_State* L, const Duo finalPos, const int16_t msPassed,
 	const auto tint = ( lua_rawgeti(L, ATINT, ++agoUsed), dmScript::CheckVector4(L, -1) );
 	const auto lAgo = ( lua_rawgeti(L, AGOL, agoUsed), dmScript::CheckGOInstance(L, -1) ),
 			   rAgo = ( lua_rawgeti(L, AGOR, agoUsed), dmScript::CheckGOInstance(L, -1) );
+
+	/* Position */ {
+		const float finalPosZ = -msPassed * 0.00001f;
+		const auto  finalPos3 = p3( finalPos.a, finalPos.b, finalPosZ );
+		dmGameObject::SetPosition( lAgo, finalPos3 );
+		dmGameObject::SetPosition( rAgo, finalPos3->setZ(finalPosZ + 0.00001f) );
+	}
 
 	/* Tint XYZ */
 	switch(status) {
@@ -124,7 +131,7 @@ Arf4_API UpdateArf(lua_State* L) {
 		if( Arf.msTime < 2 )						Arf.msTime = 2;
 		else if( Arf.msTime >= Arf.before )			return 0;
 	}
-	const uint32_t frameEndMs = Arf.msTime + (uint32_t)(luaL_checknumber(L, 2) * 1000);
+	const uint32_t frameEndMs = Arf.msTime + (uint32_t)(luaL_checknumber(L, 2) * 1000.0);
 		  uint16_t wgoUsed = 0, hgoUsed = 0, egoUsed = 0, agoUsed = 0;
 	struct{uint8_t hint:4 = false, echo:4 = false;} playHitSoundThisFrame;
 	JudgeArfSweep();
@@ -223,7 +230,6 @@ Arf4_API UpdateArf(lua_State* L) {
 	}
 	for( const auto ei : Arf.idxGroups[ Arf.msTime>>9 ].eIdx ) {
 		auto& currentEcho = Arf.echo[ei];
-
 	}
 
 	return lua_pushinteger(L, wgoUsed), lua_pushinteger(L, hgoUsed), lua_pushinteger(L, egoUsed),

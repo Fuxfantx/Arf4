@@ -101,6 +101,8 @@ namespace Arf4 {
 		std::vector<Duo>						blocked;
 	};
 }
+extern  Arf4::Fumen  Arf;
+extern  int8_t		 InputDelta;
 
 namespace Ar {
 	using namespace Arf4;
@@ -134,7 +136,5 @@ namespace Ar {
 	 int  PartialEaseLua(lua_State* L);
 	 int  DoHapticFeedback(lua_State* L);
 	 int  SetInputDelta(lua_State* L);
+	 int  TransformStr(lua_State* L);
 }
-
-extern  Arf4::Fumen  Arf;
-extern  int8_t		 InputDelta;

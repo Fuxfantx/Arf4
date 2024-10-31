@@ -8,7 +8,7 @@ using namespace std;
 double sin(double), cos(double);
 constexpr struct EaseConstants {
 	float ratioSin[1025] = {}, ratioCos[1025] = {}, degreeSin[901] = {}, degreeCos[901] = {};
-	constexpr EaseConstants() {
+	constexpr EaseConstants() noexcept {
 		constexpr double PI = 3.141592653589793238462643383279502884197169399375105820974944592307816406286;
 		for ( uint16_t i = 0; i < 1025; i++ ) {
 			const double currentArc = PI * i / 2048.0;
@@ -41,7 +41,7 @@ constexpr struct EaseConstants {
  * [Params] from, type, to, ratio, curve_init, curve_end
  * [Return] actualFrom + actualDelta * f( curve_init + (curve_end-curve_init)*ratio )
  */
-inline float calculateEasedRatio(const float ratio, const uint8_t type) {
+inline float calculateEasedRatio(const float ratio, const uint8_t type) noexcept {
 	switch(type) {
 		case LINEAR:	return ratio;
 		case INSINE:	return C.ratioSin[(uint16_t)(ratio * 1024)];
@@ -73,8 +73,8 @@ template <typename T> void precalculate(T& object) {
 	}
 }
 
-Duo getSinCosByDegree(const double degree) {	// Redundant "else" keywords are remained,
-	if( degree >= 0 ) {							//   to make the control flow easier to understand.
+Duo getSinCosByDegree(const double degree) noexcept {	// Redundant "else" keywords are remained,
+	if( degree >= 0 ) {									//   to make the control flow easier to understand.
 		const uint64_t deg = (uint64_t)(degree * 10.0) % 3600;
 		if(deg > 1800) {
 			if(deg > 2700)	return { .a = -C.degreeSin[3600-deg], .b =  C.degreeCos[3600-deg] };
@@ -98,14 +98,14 @@ Duo getSinCosByDegree(const double degree) {	// Redundant "else" keywords are re
 	}
 }
 
-inline void PrecalculatePosNode(PosNode& currentPn) {
+inline void PrecalculatePosNode(PosNode& currentPn) noexcept {
 	return precalculate(currentPn);
 }
-inline void PrecalculateEcho(Echo& echo) {
+inline void PrecalculateEcho(Echo& echo) noexcept {
 	return precalculate(echo);
 }
 
-inline Duo InterpolateEcho(const Echo& echo) {
+inline Duo InterpolateEcho(const Echo& echo) noexcept {
 	if( echo.ease == 0 )   return { .a = echo.fromX, .b = echo.fromY };
 	const float deltaX = echo.toX - echo.fromX,
 				deltaY = echo.toY - echo.fromY;
@@ -154,7 +154,7 @@ inline Duo InterpolateEcho(const Echo& echo) {
 	}
 }
 
-inline Duo InterpolatePosNode(const PosNode& currentPn, const PosNode& nextPn) {
+inline Duo InterpolatePosNode(const PosNode& currentPn, const PosNode& nextPn) noexcept {
 	if( currentPn.ease == 0 )   return { .a = currentPn.x, .b = currentPn.y };
 	const float deltaX = nextPn.x - currentPn.x,
 				deltaY = nextPn.y - currentPn.y;
