@@ -75,7 +75,7 @@ static bool renderAnim(lua_State* L, const Duo finalPos, const int16_t msPassed,
 
 	/* Tint XYZ */
 	switch(status) {
-		case HIT_LIT: default:
+		case 0: default:
 			switch(Arf.daymode) {
 				case false: default:
 					tint -> setX(A_HIT_R).setY(A_HIT_R).setZ(A_HIT_R);
@@ -84,10 +84,10 @@ static bool renderAnim(lua_State* L, const Duo finalPos, const int16_t msPassed,
 					tint -> setX(A_HIT_R).setY(A_HIT_G).setZ(A_HIT_B);
 			}
 			break;
-		case EARLY_LIT:
+		case 1:
 			tint -> setX(A_EARLY_R).setY(A_EARLY_G).setZ(A_EARLY_B);
 			break;
-		case LATE_LIT:   // break omitted
+		case 2:   // break omitted
 			tint -> setX(A_LATE_R).setY(A_LATE_G).setZ(A_LATE_B);
 	}
 
@@ -225,8 +225,78 @@ Arf4_API UpdateArf(lua_State* L) {
 
 	/* Hint, Echo */
 	for( const auto hi : Arf.idxGroups[ Arf.msTime>>9 ].hIdx ) {
-		auto& currentHint = Arf.hint[hi];
+		const auto& currentHint = Arf.hint[hi];
+		const auto  frameOffset  = (int32_t)Arf.msTime - (int32_t)currentHint.ms;
+		if( frameOffset < -510 )		break;
+		if( frameOffset > +470 )		continue;
 
+		const Duo finalPos = {
+			.a = 900.0f + (currentHint.x * Arf.rotCos - currentHint.y * Arf.rotSin) * Arf.xScale + Arf.xDelta,
+			.b = 540.0f + (currentHint.x * Arf.rotSin + currentHint.y * Arf.rotCos) * Arf.yScale + Arf.yDelta
+		};
+		const GO hintGo   = ( lua_rawgeti(L, HGO, hgoUsed+1), dmScript::CheckGOInstance(L, -1) );
+		const v4 hintTint = ( lua_rawgeti(L, HTINT, hgoUsed+1), dmScript::CheckVector4(L, -1)  );
+		lua_pop(L, 2);
+
+		if( frameOffset < -370 ) {
+			dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, frameOffset * 0.0001f) );
+			const float color = 0.1337f + (frameOffset + 510)*0.0005f;
+			hintTint -> setX(color).setY(color).setZ(color);
+			hgoUsed++;
+		}
+		else if( frameOffset <= 370) switch(currentHint.status) {
+			case NJUDGED:
+			case SPECIAL:
+				hintTint -> setX(0.2037f).setY(0.2037f).setZ(0.2037f);
+				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, -0.035f) );
+				hgoUsed++;
+				break;
+			case NJUDGED_LIT:
+			case SPECIAL_LIT:
+				hintTint -> setX(0.3737f).setY(0.3737f).setZ(0.3737f);
+				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, -0.033f) );
+				hgoUsed++;
+				break;
+			case EARLY_LIT:   // No break here
+				hintTint -> setX(H_EARLY_R).setY(H_EARLY_G).setZ(H_EARLY_B);
+				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, -0.004f) );
+				hgoUsed++;
+			case EARLY:
+				agoUsed += renderAnim(L, finalPos, frameOffset-currentHint.deltaMs, 1, agoUsed);
+				break;
+			case HIT_LIT:   // No break here
+				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, -0.004f) );
+				switch(Arf.daymode) {
+					case true:
+						hintTint -> setX(H_HIT_R).setY(H_HIT_G).setZ(H_HIT_B);
+					case false: default:
+						hintTint -> setX(H_HIT_R).setY(H_HIT_R).setZ(H_HIT_R);
+				}
+				hgoUsed++;
+			case HIT:
+				agoUsed += renderAnim(L, finalPos, frameOffset-currentHint.deltaMs, 0, agoUsed);
+				break;
+			case LATE_LIT: HCASE_LATE_LIT:  // No break here
+				hintTint -> setX(H_LATE_R).setY(H_LATE_G).setZ(H_LATE_B);
+				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, -0.004f) );
+				hgoUsed++;
+			case LATE: HCASE_LATE:
+				agoUsed += renderAnim(L, finalPos, frameOffset-currentHint.deltaMs, 2, agoUsed);
+				break;
+			case LOST:
+				{	dmGameObject::SetPosition( hintGo,
+										p3(finalPos.a, finalPos.b, 0.005f - frameOffset * 0.0001f) );
+					float color = 0.437f - frameOffset * 0.00037f;		hintTint -> setX(color);
+						  color *= 0.51f;								hintTint -> setY(color).setZ(color);
+					hgoUsed++;
+				}	break;
+			default:   // AUTO & SPECIAL_AUTO
+		}
+		else if( currentHint.deltaMs > 0 ) switch( currentHint.status ) {   // No break here
+			case LATE_LIT:		goto HCASE_LATE_LIT;
+			case LATE:			goto HCASE_LATE;
+			default:;
+		}
 	}
 	for( const auto ei : Arf.idxGroups[ Arf.msTime>>9 ].eIdx ) {
 		auto& currentEcho = Arf.echo[ei];
