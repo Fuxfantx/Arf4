@@ -106,9 +106,9 @@ inline void PrecalculateEcho(Echo& echo) noexcept {
 }
 
 inline Duo InterpolateEcho(const Echo& echo) noexcept {
-	if( echo.ease == 0 )   return { .a = echo.fromX, .b = echo.fromY };
-	const float deltaX = echo.toX - echo.fromX,
-				deltaY = echo.toY - echo.fromY;
+	if( echo.toMs <= Arf.msTime )	return { .a = echo.toX, .b = echo.toY };
+	if( echo.ease == 0 )			return { .a = echo.fromX, .b = echo.fromY };
+	const float deltaX = echo.toX - echo.fromX,  deltaY = echo.toY - echo.fromY;
 
 	if( echo.ease < 6 ) {   // Simple Path
 		const float ratio = calculateEasedRatio( (double)(Arf.msTime - echo.fromMs) / (echo.toMs - echo.fromMs)

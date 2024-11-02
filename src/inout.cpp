@@ -53,8 +53,7 @@ namespace bitsery {
 		   inout.container2b(its.eIdx, 65535);
 	)
 	Inout( Wish,
-		   inout.container(its.wishChilds, 65535);
-		   inout.container(its.nodes, 65535);
+		   inout.container(its.wishChilds, 65535);		inout.container(its.nodes, 65535);
 		   inout.ext(its.deltaGroup, CV);
 	)
 
@@ -147,10 +146,11 @@ Arf4_API LoadArf(lua_State* L) {
 	}
 
 	if(isAuto) {
-		for( auto& hint : Arf.hint )
-			hint.status = hint.status ? SPECIAL_AUTO : AUTO;
+		for( auto& hint : Arf.hint ) {
+			hint.status = hint.status ? SPECIAL_AUTO : AUTO;		hint.deltaMs = 0;
+		}
 		for( auto& echo : Arf.echo ) {
-			echo.status = echo.status ? SPECIAL_AUTO : AUTO;
+			echo.status = echo.status ? SPECIAL_AUTO : AUTO;		echo.deltaMs = 0;
 			PrecalculateEcho(echo);
 		}
 	}
