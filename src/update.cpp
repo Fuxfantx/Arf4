@@ -163,7 +163,7 @@ Arf4_API UpdateArf(lua_State* L) {
 				const float existMs = Arf.msTime - currentWish.nodes[0].ms;
 				wgoUsed += renderWish( L,
 					nodePos = InterpolatePosNode( *currentWish.pIt, *(currentWish.pIt+1) ),
-					{ .a = 0.01f, .b = existMs >= 151 ? 1 : existMs / 163.0f } , wgoUsed );
+					{ .a = 0.01f, .b = existMs >= 151 ? 1 : existMs / 151.0f } , wgoUsed );
 				break;
 			}
 			++currentWish.pIt;
@@ -248,7 +248,7 @@ Arf4_API UpdateArf(lua_State* L) {
 				hgoUsed++;
 				break;
 			case NJUDGED_LIT:
-				case SPECIAL_LIT: HCASE_AUTO_U0:
+			case SPECIAL_LIT: HCASE_AUTO_U0:
 				hintTint -> setX(0.3737f).setY(0.3737f).setZ(0.3737f);
 				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, -0.033f) );
 				hgoUsed++;
