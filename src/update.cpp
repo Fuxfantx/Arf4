@@ -35,7 +35,7 @@ static bool renderWish(lua_State* L, const Duo centerPos, Duo info, uint16_t wgo
 				const auto thisWgo = ( lua_rawgeti(L, WGO, ++wgoUsed),
 												dmScript::CheckGOInstance(L, -1) );
 				/* Tint W */ lua_pushnumber(L, info.b), lua_rawseti(L, WTINT, wgoUsed);
-				dmGameObject::SetScale( thisWgo, 0.637f + 0.437f * info.b * (info.b = 1.0f - info.b) );
+				dmGameObject::SetScale( thisWgo, 0.637f + 0.437f * (info.b = 1.0f - info.b) * info.b );
 				dmGameObject::SetPosition( thisWgo, p3(finalPos.a, finalPos.b, info.a) );
 				Arf.lastWgo[ finalPos.whole ] = wgoUsed;
 				return lua_pop(L, 1), true;
@@ -236,7 +236,7 @@ Arf4_API UpdateArf(lua_State* L) {
 
 		if( frameOffset < -370 ) {
 			dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, frameOffset * 0.0001f) );
-			const float color = 0.1337f + (frameOffset + 510)*0.0005f;
+			const float color = 0.1337f + (frameOffset + 510) * 0.0005f;
 			hintTint -> setX(color).setY(color).setZ(color);
 			hgoUsed++;
 		}
@@ -327,12 +327,12 @@ Arf4_API UpdateArf(lua_State* L) {
 			dmGameObject::SetPosition( echoHgo, ehPos3 );
 			dmGameObject::SetPosition( echoGo, p3(egoPos.a, egoPos.b, 0.02f) );
 
-			const float color = 0.1337f + (frameOffset + 510)*0.0005f;
+			const float color = 0.1337f + (frameOffset + 510) * 0.0005f;
 				  float life = Arf.msTime - currentEcho.fromMs;
 						life = life > 151 ? 1 : life / 151.0f;
 			echoTint -> setX(color).setY(color).setZ(color).setW(life);
 
-			dmGameObject::SetScale( echoHgo, 0.637f + 0.437f * life * (life = 1.0f - life) );
+			dmGameObject::SetScale( echoHgo, 0.637f + 0.437f * (life = 1.0f - life) * life );
 			egoUsed++;
 		}
 		else if( frameOffset <= 370) switch(currentEcho.status) {
@@ -345,7 +345,7 @@ Arf4_API UpdateArf(lua_State* L) {
 					  life = life > 151 ? 1 : life / 151.0f;
 				echoTint -> setX(0.2037f).setY(0.2037f).setZ(0.2037f).setW(life);
 
-				dmGameObject::SetScale( echoHgo, 0.637f + 0.437f * life * (life = 1.0f - life) );
+				dmGameObject::SetScale( echoHgo, 0.637f + 0.437f * (life = 1.0f - life) * life );
 				egoUsed++;
 			}	break;
 			case NJUDGED_LIT:
@@ -357,7 +357,7 @@ Arf4_API UpdateArf(lua_State* L) {
 					  life = life > 151 ? 1 : life / 151.0f;
 				echoTint -> setX(0.3737f).setY(0.3737f).setZ(0.3737f).setW(life);
 
-				dmGameObject::SetScale( echoHgo, 0.637f + 0.437f * life * (life = 1.0f - life) );
+				dmGameObject::SetScale( echoHgo, 0.637f + 0.437f * (life = 1.0f - life) * life );
 				egoUsed++;
 			}	break;
 			case HIT_LIT: ECASE_HIT_LIT: {
@@ -373,7 +373,7 @@ Arf4_API UpdateArf(lua_State* L) {
 						echoTint -> setX(H_HIT_R).setY(H_HIT_R).setZ(H_HIT_R).setW(life);
 				}
 
-				dmGameObject::SetScale( echoHgo, 0.637f + 0.437f * life * (life = 1.0f - life) );
+				dmGameObject::SetScale( echoHgo, 0.637f + 0.437f * (life = 1.0f - life) * life );
 				egoUsed++;
 			}   // No break here
 			case HIT: ECASE_HIT:

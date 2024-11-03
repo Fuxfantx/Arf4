@@ -100,7 +100,7 @@ Arf4_API LoadArf(lua_State* L) {
 			return 1;
 		}
 
-		fseek(pFile, 0, SEEK_END);										// Size
+		fseek(pFile, 0, SEEK_END);							// Size
 		bufSize = ftell(pFile);
 		fseek(pFile, 0, SEEK_SET);
 
@@ -149,27 +149,21 @@ Arf4_API LoadArf(lua_State* L) {
 	if(isAuto) {
 		for( auto& hint : Arf.hint )
 			hint.status = hint.status ? SPECIAL_AUTO : AUTO,		hint.deltaMs = 0;
-		for( auto& echo : Arf.echo ) {
-			echo.status = echo.status ? SPECIAL_AUTO : AUTO,		echo.deltaMs = 0;
+		for( auto& echo : Arf.echo )
+			echo.status = echo.status ? SPECIAL_AUTO : AUTO,		echo.deltaMs = 0,
 			PrecalculateEcho(echo);
-		}
 	}
 	else {
 		for( auto& hint : Arf.hint )
 			hint.status = hint.status ? SPECIAL : NJUDGED;
-		for( auto& echo : Arf.echo ) {
-			echo.status = echo.status ? SPECIAL : NJUDGED;
+		for( auto& echo : Arf.echo )
+			echo.status = echo.status ? SPECIAL : NJUDGED,
 			PrecalculateEcho(echo);
-		}
 	}
 
-	return
-	lua_pushnumber(L, Arf.before),
-	lua_pushnumber(L, Arf.objectCount),
-	lua_pushnumber(L, Arf.wgoRequired),
-	lua_pushnumber(L, Arf.hgoRequired),
-	lua_pushnumber(L, Arf.egoRequired),
-	free(pBuf), 5;
+	return lua_pushnumber(L, Arf.before),			lua_pushnumber(L, Arf.objectCount),
+		   lua_pushnumber(L, Arf.wgoRequired),		lua_pushnumber(L, Arf.hgoRequired),
+		   lua_pushnumber(L, Arf.egoRequired),		free(pBuf), 5;
 }
 
 #ifdef AR_BUILD_VIEWER
