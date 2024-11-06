@@ -136,14 +136,15 @@ Arf4_API UpdateArf(lua_State* L) {
 	for( auto& deltaGroup : Arf.deltaGroups ) {
 		while( deltaGroup.it != deltaGroup.nodes.cbegin()  &&  Arf.msTime < deltaGroup.it->initMs )
 			--deltaGroup.it;
-		while( deltaGroup.it != deltaGroup.nodes.cend() ) {
+		const auto lastNodeIt = deltaGroup.nodes.cend() - 1;
+		while( deltaGroup.it != lastNodeIt ) {
 			if( Arf.msTime < (deltaGroup.it+1)->initMs ) {
 				deltaGroup.dt = deltaGroup.it->baseDt + (Arf.msTime - deltaGroup.it->initMs) * deltaGroup.it->ratio;
 				goto NEXT_GROUP;
 			}
 			++deltaGroup.it;
 		}
-		if( deltaGroup.it == Arf.deltaGroups.cend() )
+		if( deltaGroup.it == lastNodeIt )
 			deltaGroup.dt = deltaGroup.it->baseDt + (Arf.msTime - deltaGroup.it->initMs) * deltaGroup.it->ratio;
 		NEXT_GROUP:;
 	}
@@ -154,11 +155,15 @@ Arf4_API UpdateArf(lua_State* L) {
 		Duo   nodePos;
 
 		// Nodes //
-		if( Arf.msTime <  currentWish.nodes[0].ms )			break;
-		if( Arf.msTime >= currentWish.nodes.cend()->ms )	continue;
+		if( Arf.msTime <  currentWish.nodes[0].ms )
+			break;
+
+		const auto lastNodeIt = currentWish.nodes.cend() - 1;
+		if( Arf.msTime >= lastNodeIt->ms )
+			continue;
 		while( currentWish.pIt != currentWish.nodes.cbegin()  &&  Arf.msTime < currentWish.pIt->ms )
 			--currentWish.pIt;
-		while( currentWish.pIt != currentWish.nodes.cend() ) {
+		while( currentWish.pIt != lastNodeIt ) {
 			if( Arf.msTime < (currentWish.pIt+1)->ms ) {
 				const float existMs = Arf.msTime - currentWish.nodes[0].ms;
 				wgoUsed += renderWish( L,
@@ -171,26 +176,28 @@ Arf4_API UpdateArf(lua_State* L) {
 
 		// WishChilds //
 		const double currentDt = Arf.deltaGroups[ currentWish.deltaGroup ].dt;
+		const auto lastWishChildIt = currentWish.wishChilds.cend() - 1;
 		if( currentWish.wishChilds.empty()						||
-			currentWish.wishChilds.cend()->dt <= currentDt		||
+			lastWishChildIt->dt <= currentDt					||
 			currentWish.wishChilds.cbegin()->dt > currentDt + 16 )	 continue;
 		if( currentWish.cIt != currentWish.nodes.cbegin()  &&  (currentWish.cIt-1)->dt > currentDt ) {
 			do	 --currentWish.cIt;
 			while( currentWish.cIt != currentWish.nodes.cbegin()  &&  (currentWish.cIt-1)->dt > currentDt );
 		}
-		else while( currentWish.cIt != currentWish.nodes.cend()  &&  currentWish.cIt->dt <= currentDt )
+		else while( currentWish.cIt != lastWishChildIt  &&  currentWish.cIt->dt <= currentDt )
 			++currentWish.cIt;
 
 		// Rough Range of Distance (0, 16)
-		for( auto cItLocal = currentWish.cIt; cItLocal <= currentWish.nodes.cend(); ++cItLocal ) {
+		for( auto cItLocal = currentWish.cIt; cItLocal <= lastWishChildIt; ++cItLocal ) {
 			const auto distance = (uint16_t)( (cItLocal->dt - currentDt) * 512.0 );
 			if( distance > 8192 /* 16<<9 */ )				break;		// So aNodes[0].distance is the
 			if( distance > cItLocal->aNodes[0].distance )	continue;   //   "Max Visible Distance".
 
 			Duo childSinCos, getSinCosByDegree(double);
+			const auto lastAnodeIt = cItLocal->aNodes.cend() - 1;
 			while( cItLocal->aIt != cItLocal->aNodes.cbegin()  &&  distance > cItLocal->aIt->distance )
 				--cItLocal->aIt;
-			while( cItLocal->aIt != cItLocal->aNodes.cend() ) {
+			while( cItLocal->aIt != lastAnodeIt ) {
 				const auto currentAnIt = cItLocal->aIt, nextAnIt = currentAnIt + 1;
 				const uint16_t nextAnDist = nextAnIt->distance;
 				if( distance > nextAnDist ) {
@@ -207,7 +214,7 @@ Arf4_API UpdateArf(lua_State* L) {
 				}
 				++cItLocal->aIt;
 			}
-			if( cItLocal->aIt == cItLocal->aNodes.cend() )
+			if( cItLocal->aIt == lastAnodeIt )
 				childSinCos = getSinCosByDegree( (double)cItLocal->aIt->degree );
 
 			RENDER_WISHCHILD:
