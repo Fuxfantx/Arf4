@@ -5,37 +5,45 @@
 #include <dmsdk/sdk.h>
 
 namespace Arf4 {
-	enum TableIndex		{		WGO = 3, HGO, EGO, EHGO, AGOL, AGOR, WTINT, HTINT, ETINT, ATINT			};
-	enum EaseType		{	 STATIC = 0, LINEAR, INSINE, OUTSINE, INQUAD, OUTQUAD,
+	#define Args32(...) union{ struct{__VA_ARGS__}; int32_t whole; };
+	#define Args64(...) union{ struct{__VA_ARGS__}; int64_t whole; };
+	struct  Idx			{ std::vector<uint32_t>  wIdx, hIdx, eIdx; };
+
+	enum    TableIndex	{		WGO = 3, HGO, EGO, EHGO, AGOL, AGOR, WTINT, HTINT, ETINT, ATINT			};
+	enum	EaseType	{	 STATIC = 0, LINEAR, INSINE, OUTSINE, INQUAD, OUTQUAD,
 						  CLOCKWISE = 5, COUNTERCLIOCKWISE = 10, CPOSITIVE = 5, CNEGATIVE = 10			};
-	enum Status			{	NJUDGED = 0, NJUDGED_LIT, EARLY, EARLY_LIT, HIT, HIT_LIT, LATE, LATE_LIT,
+	enum	Status		{	NJUDGED = 0, NJUDGED_LIT, EARLY, EARLY_LIT, HIT, HIT_LIT, LATE, LATE_LIT,
 							AUTO, SPECIAL, SPECIAL_LIT, SPECIAL_AUTO, LOST, PENDING = -127				};
 
-	// Primitive
-	struct PosNode {
-		int32_t		ms:28/*7*/;
-		uint32_t	ease:4;
-		float		x, y, ci, ce = 1;							// Center (cdx:0, cdy:0)
-		/*--------------------------------*/					// Some Partial-Ease calculation results
-		float		xFci, xFce, xDnm;							//   are cached here to improve the ease
-		float		yFci, yFce, yDnm;							//   performance.
-	};
-	struct Hint {
-		float		x, y;
-		uint32_t	ms:20, status:4;							// Max 1048575ms -> 17.47625 mins
-		int32_t		deltaMs:8 = PENDING;
+	struct Point {
+		float									x, y, t;
+		Args32(
+			uint32_t							ce:14 = 0x3FFF;
+			uint32_t							ease:4 = LINEAR;
+			uint32_t							ci:14;
+		)
+		//--------------------------------//
+		float									xFci, xFce, xDnm;
+		float									yFci, yFce, yDnm;
 	};
 	struct Echo {
-		float		fromX, fromY, toX, toY, ci, ce = 1;
-		uint32_t	fromMs:27/*7*/, ease:4, isReal:1;
-		uint32_t	toMs:20, status:4;
-		int32_t		deltaMs:8;
-		/*--------------------------------*/
-		float		xFci, xFce, xDnm;
-		float		yFci, yFce, yDnm;
+		float									fromX, fromY, fromT, toX, toY, toT;
+		Args32(
+			uint32_t							ce:8 = 0xFF, ease:4, status:4, ci:8;
+			int32_t								deltaMs:8;
+		)
+		//--------------------------------//
+		float									xFci, xFce, xDnm;
+		float									yFci, yFce, yDnm;
+	};
+	struct Hint {
+		float									x, y;
+		Args32(
+			uint32_t							ms:20, status:4;	// Max 1048575ms -> 17.47625 mins
+			int32_t								deltaMs:8;			// Set deltaMs = PENDING to init it
+		)
 	};
 
-	// DeltaTime
 	struct DeltaNode {
 		double									baseDt;
 		uint32_t								initMs;
@@ -47,35 +55,29 @@ namespace Arf4 {
 		double									dt;
 	};
 
-	// WishChild
-	struct AngleNode {
-		uint16_t	distance:13 = 7 << 9;						// [0,16)
-		uint16_t	ease:3;
-		int16_t		degree;
-	};
-	struct WishChild {
-		std::vector<AngleNode>					aNodes;
-		std::vector<AngleNode>::const_iterator	aIt;
-		double									dt;
-	};
-
-	// Fumen
-	union Duo {
-		uint64_t								whole;
-		struct {
+	struct Duo {
+		Args64(
 			union							  { float a;  uint32_t aa;  };
 			union							  { float b;  uint32_t bb;  };
-		};
+		)
 	};
-	struct Idx  { std::vector<uint32_t>			wIdx, hIdx, eIdx;										};
+	struct ChildParam {
+		Args32(
+			int16_t								fromDegree:12 = 90;
+			uint16_t							initRadius:8 = 0x7F;
+			int16_t								toDegree:12 = 90;
+		)
+	};
+
 	struct Wish {
-		std::vector<PosNode>					nodes;
-		std::vector<WishChild>					wishChilds;
-		/*--------------------------------*/
-		std::vector<PosNode>::const_iterator	pIt;
-		std::vector<WishChild>::iterator		cIt;
-		/*--------------------------------*/
-		uint64_t								deltaGroup;
+		std::vector<Point>						nodes;
+		std::vector<double>						childDts;
+		std::vector<ChildParam>					childParams;
+		//--------------------------------//
+		std::vector<Point>::const_iterator		pIt;
+		uint32_t								childIdx;
+		//--------------------------------//
+		uint32_t								deltaGroup;
 	};
 	struct Fumen {
 		std::vector<Idx>						idxGroups;
@@ -83,20 +85,22 @@ namespace Arf4 {
 		std::vector<Wish>						wish;
 		std::vector<Hint>						hint;
 		std::vector<Echo>						echo;
+		/*--------------------------------*/
+		Args64(
+			uint64_t							before:20;
+			uint64_t							objectCount:15;
+			uint64_t							wgoRequired:10 = 1023, hgoRequired:9, egoRequired:10;
+		)
 		//--------------------------------//
 		uint64_t								msTime:20;
-		uint64_t								before:20;
-		uint64_t								objectCount:15;
-		uint64_t								wgoRequired:9 = 511, hgoRequired:8, egoRequired:9;
-		//--------------------------------//
-		uint64_t								hHit:15, eHit:15, early:15, late:15, lost:15, spJudged:12;
+		uint64_t								hHit:15, eHit:15, early:15, late:15, lost:15, spJudged:9;
 		uint64_t								daymode:1, judgeRange:7 = 37;
 		int64_t									minDt:8, maxDt:8;
-		//--------------------------------//
+		/*--------------------------------*/
 		float									objectSizeX = 360, objectSizeY = 360;
 		float									xScale = 1, yScale = 1, xDelta, yDelta, rotSin, rotCos = 1;
 		float									boundL = -36, boundR = 1836, boundU = 1116, boundD = -36;
-		//--------------------------------//
+		/*--------------------------------*/
 		std::unordered_map<uint64_t, uint16_t>	lastWgo, lastEhgo;
 		std::vector<Duo>						blocked;
 	};
@@ -108,33 +112,33 @@ namespace Ar {
 	using namespace Arf4;
 
 	/* Internal */
-	 Duo  InterpolateEcho(const Echo& echo);
-	 Duo  InterpolatePosNode(const PosNode& currentPn, const PosNode& nextPn);
-	void  PrecalculatePosNode(PosNode& currentPn);
+	Duo  InterpolateEcho(const Echo& echo);
+	Duo  InterpolatePosNode(const Point& currentPn, const Point& nextPn);
+	void  PrecalculatePosNode(Point& currentPn);
 	void  PrecalculateEcho(Echo& currentPn);
 	void  JudgeArfSweep();
 
 	/* Fumen Operations */
-	 int  LoadArf(lua_State* L);
-	 int  ExportArf(lua_State* L);
-	 int  OrganizeArf(lua_State* L);
-	 int  UpdateArf(lua_State* L);
-	 int  JudgeArf(lua_State* L);
+	int  LoadArf(lua_State* L);
+	int  ExportArf(lua_State* L);
+	int  OrganizeArf(lua_State* L);
+	int  UpdateArf(lua_State* L);
+	int  JudgeArf(lua_State* L);
 
 	/* Fumen Utils */
-	 int  SetCam(lua_State* L);
-	 int  SetBound(lua_State* L);
-	 int  SetDaymode(lua_State* L);
-	 int  SetObjectSize(lua_State* L);
-	 int  SetJudgeRange(lua_State* L);
-	 int  GetJudgeStat(lua_State* L);
+	int  SetCam(lua_State* L);
+	int  SetBound(lua_State* L);
+	int  SetDaymode(lua_State* L);
+	int  SetObjectSize(lua_State* L);
+	int  SetJudgeRange(lua_State* L);
+	int  GetJudgeStat(lua_State* L);
 
 	/* Other Utils */
-	 int  NewTable(lua_State* L);
-	 int  PushNullPtr(lua_State* L);
-	 int  SimpleEaseLua(lua_State* L);
-	 int  PartialEaseLua(lua_State* L);
-	 int  DoHapticFeedback(lua_State* L);
-	 int  SetInputDelta(lua_State* L);
-	 int  TransformStr(lua_State* L);
+	int  NewTable(lua_State* L);
+	int  PushNullPtr(lua_State* L);
+	int  SimpleEaseLua(lua_State* L);
+	int  PartialEaseLua(lua_State* L);
+	int  DoHapticFeedback(lua_State* L);
+	int  SetInputDelta(lua_State* L);
+	int  TransformStr(lua_State* L);
 }

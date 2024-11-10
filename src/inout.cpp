@@ -17,54 +17,46 @@ struct PseudoContext {
 #define Inout(TYPE, DETAILS)	template<typename S> void serialize(S& s, Arf4:: TYPE &its) {			   \
 			  s.enableBitPacking( [&its](typename S::BPEnabledType& inout) { DETAILS ; } ); }
 namespace bitsery {
-	static constexpr auto ES = ext::ValueRange<float>  {0.0f, 1.0f, 1.0f/1024};				// [10] Curve
 	static constexpr auto PY = ext::ValueRange<float>  {-8100.0f, 8100.0f, 1.0f/4};			// [16] Pos Y
 	static constexpr auto PX = ext::ValueRange<float>  {-16200.0f, 16200.0f, 1.0f/4};			// [17] Pos X
+	static constexpr auto MS = ext::ValueRange<float>  {0.0f, 1048575.0f, 1.0f};				// [20] Time in Ms
 	static constexpr auto DR = ext::ValueRange<float>  {-16.0f, 16.0f, 1.0f/131072};			// [21] Dt Ratio
-	static constexpr auto DT = ext::ValueRange<double> {0.0, (double)0x111111, 1.0/131072};	// [41] Dt Base
+	static constexpr auto DT = ext::ValueRange<double> {0.0, (double)0xFFFFFF, 1.0/131072};	// [41] Dt Base
 	static constexpr auto CV = ext::CompactValueAsObject{};
 
-	Inout( PosNode,
-		inout.ext(its.ms, CV);		inout.ext(its.ease, CV);		inout.ext(its.x, PX);
-		inout.ext(its.ci, ES);		inout.ext(its.ce, ES);			inout.ext(its.y, PY);
-	)
-	Inout( Hint,
-		inout.ext(its.ms, CV);		inout.ext(its.status, CV);   // hint.status -> [0]Non-Special [1]Special
-		inout.ext(its.x, PX);		inout.ext(its.y, PY);
+	Inout( Point,
+		   inout.ext(its.x, PX);			inout.ext(its.y, PY);				inout.ext(its.t, MS);
+		   inout.ext(its.whole, CV);
 	)
 	Inout( Echo,
-		inout.ext(its.fromMs, CV);	inout.ext(its.toMs, CV);		inout.ext(its.ci, ES);
-		inout.ext(its.fromX, PX);	inout.ext(its.toX, PX);			inout.ext(its.ce, ES);
-		inout.ext(its.fromY, PY);	inout.ext(its.toY, PY);			inout.ext(its.isReal, CV);
-		inout.ext(its.ease, CV);	inout.ext(its.status, CV);   // echo.status -> [0]Non-Special [1]Special
+		   inout.ext(its.toX, PX);			inout.ext(its.toY, PY);				inout.ext(its.toT, MS);
+		   inout.ext(its.fromX, PX);		inout.ext(its.fromY, PY);			inout.ext(its.fromT, MS);
+		   inout.ext(its.whole, CV);
+	)
+	Inout( Hint,
+		   inout.ext(its.x, PX);			inout.ext(its.y, PY);				inout.ext(its.whole, CV);
 	)
 
-	Inout( AngleNode,
-		   inout.ext(its.ease, CV);		inout.ext(its.degree, CV);	inout.ext(its.distance, CV);	)
-	Inout( WishChild,
-		   inout.ext(its.dt, DT);		inout.container(its.aNodes, 65535);							)
 	Inout( DeltaNode,
-		   inout.ext(its.ratio, DR);	inout.ext(its.initMs, CV);									)
+		   inout.ext(its.ratio, DR);		inout.ext(its.initMs, CV);									)
 	Inout( DeltaGroup,
-		   inout.container(its.nodes, 65535);														)
+		   inout.container(its.nodes, 65535);															)
+	Inout( ChildParam,
+		   inout.ext(its.whole, CV);																	)
+
 	Inout( Idx,
 		   inout.container2b(its.wIdx, 65535);
 		   inout.container2b(its.hIdx, 65535);
 		   inout.container2b(its.eIdx, 65535);
 	)
 	Inout( Wish,
-		   inout.container(its.wishChilds, 65535);
-		   inout.container(its.nodes, 65535);
-		   inout.ext(its.deltaGroup, CV);
+		   inout.ext(its.deltaGroup, CV);				inout.container(its.childDts, 65535);
+		   inout.container(its.nodes, 65535);			inout.container(its.childParams, 65535);
 	)
-
 	Inout( Fumen,
-		   inout.container(its.idxGroups, 2047);
-		   inout.container(its.deltaGroups, 65535);		inout.container(its.hint, 65535);
-		   inout.container(its.wish, 131071);			inout.container(its.echo, 65535);
-		   inout.ext(its.wgoRequired, CV);				inout.ext(its.hgoRequired, CV);
-		   inout.ext(its.objectCount, CV);				inout.ext(its.egoRequired, CV);
-		   inout.ext(its.before, CV);
+		   inout.container(its.idxGroups, 2047);		inout.container(its.deltaGroups, 65535);
+		   inout.container(its.wish, 131071);			inout.container(its.hint, 32767);
+		   inout.container(its.echo, 32767);			inout.ext(its.whole, CV);
 	)
 
 	struct Arf4Config {
@@ -95,10 +87,8 @@ Arf4_API LoadArf(lua_State* L) {
 	const auto loadResult = dmResource::GetRaw( pContext->m_ResourceFactory, path, (void**)&pBuf, &bufSize );
 	if( loadResult != dmResource::RESULT_OK ) {
 		FILE* pFile = fopen(path, "rb");					// Open
-		if( pFile == nullptr ) {
-			lua_pushboolean(L, false);
-			return 1;
-		}
+		if( pFile == nullptr )
+			return lua_pushboolean(L, false), 1;
 
 		fseek(pFile, 0, SEEK_END);							// Size
 		bufSize = ftell(pFile);
@@ -106,9 +96,8 @@ Arf4_API LoadArf(lua_State* L) {
 
 		pBuf = (uint8_t*)malloc(bufSize);								// Copying
 		if( fread( pBuf, 1, bufSize, pFile ) != bufSize ) {
-			lua_pushboolean(L, false);
-			pBuf = ( fclose(pFile), free(pBuf), nullptr );
-			return 1;
+			free(pBuf), fclose(pFile);
+			return lua_pushboolean(L, false), 1;
 		}
 		fclose(pFile);
 	}
@@ -135,27 +124,22 @@ Arf4_API LoadArf(lua_State* L) {
 		}
 		deltaGroup.it = deltaGroup.nodes.cbegin();
 	}
-
 	for( auto& wish: Arf.wish ) {
 		wish.pIt = wish.nodes.cbegin();
 		for( size_t i=0, l=wish.nodes.size()-1; i<l; ++i )
 			PrecalculatePosNode( wish.nodes[i] );
-
-		wish.cIt = wish.wishChilds.begin();
-		for( auto& c : wish.wishChilds )
-			c.aIt = c.aNodes.cbegin();
 	}
 
 	if(isAuto) {
 		for( auto& hint : Arf.hint )
-			hint.status = hint.status ? SPECIAL_AUTO : AUTO,		hint.deltaMs = 0;
+			hint.status = hint.status ? SPECIAL_AUTO : AUTO;
 		for( auto& echo : Arf.echo )
-			echo.status = echo.status ? SPECIAL_AUTO : AUTO,		echo.deltaMs = 0,
+			echo.status = echo.status ? SPECIAL_AUTO : AUTO,
 			PrecalculateEcho(echo);
 	}
 	else {
 		for( auto& hint : Arf.hint )
-			hint.status = hint.status ? SPECIAL : NJUDGED;
+			hint.status = hint.status ? SPECIAL : NJUDGED,		hint.deltaMs = PENDING;
 		for( auto& echo : Arf.echo )
 			echo.status = echo.status ? SPECIAL : NJUDGED,
 			PrecalculateEcho(echo);
@@ -171,8 +155,8 @@ Arf4_API ExportArf(lua_State* L) {
 	/* Usage:
 	 * local str_or_false = Arf4.ExportArf()
 	 */
-	for( auto& hint : Arf.hint )	hint.status = hint.status >= SPECIAL;
-	for( auto& echo : Arf.echo )	echo.status = echo.status >= SPECIAL;
+	for( auto& hint : Arf.hint )	hint.status = hint.status >= SPECIAL,	hint.deltaMs = 0;
+	for( auto& echo : Arf.echo )	echo.status = echo.status >= SPECIAL,	echo.deltaMs = 0;
 
 	std::vector<uint8_t> buf;
 	auto encodeState = bitsery::GetArf4Encoder(buf);
