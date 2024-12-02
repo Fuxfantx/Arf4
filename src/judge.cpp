@@ -2,6 +2,7 @@
 #include <Arf4.h>
 #ifndef AR_BUILD_VIEWER
 
+using namespace Ar;
 /* Judge Behaviors:
  * [1] Tap Behavior
  * 	   Earliest Path / Anmitsu Path / Pierce Path
@@ -10,10 +11,9 @@
  * [3] Lost Behavior
  */
 
-using namespace Ar;
 inline bool hasTouchNear(const float x, const float y, const Duo* validTouches) noexcept {
-	const float l = 900.0f + (x * Arf.rotCos - y * Arf.rotSin) * Arf.xScale + Arf.xDelta - Arf.objectSizeX * 0.5f;
-	const float d = 540.0f + (x * Arf.rotSin + y * Arf.rotCos) * Arf.yScale + Arf.yDelta - Arf.objectSizeY * 0.5f;
+	const float l = 900.0f + (x*Arf.rotCos - y*Arf.rotSin) * Arf.xScale + Arf.xDelta - Arf.objectSizeX*0.5f;
+	const float d = 540.0f + (x*Arf.rotSin + y*Arf.rotCos) * Arf.yScale + Arf.yDelta - Arf.objectSizeY*0.5f;
 	const float r = l + Arf.objectSizeX, u = d + Arf.objectSizeY;
 
 	uint8_t whichTouch = 0;
@@ -59,21 +59,21 @@ inline void scanHint(Hint& currentHint, const Duo* const validTouches) noexcept 
 			break;
 		case EARLY_LIT:
 			if(! hasTouchNear(currentHint.x, currentHint.y, validTouches) )
-				currentHint.status = EARLY ;
+				currentHint.status = EARLY;
 			break;
 		case HIT_LIT:
 			if(! hasTouchNear(currentHint.x, currentHint.y, validTouches) )
-				currentHint.status = HIT ;
+				currentHint.status = HIT;
 			break;
 		case LATE_LIT:
 			if(! hasTouchNear(currentHint.x, currentHint.y, validTouches) )
-				currentHint.status = LATE ;
+				currentHint.status = LATE;
 			break;
 		default:;
 	}
 }
 
-inline void scanEcho(Echo& currentEcho, const int32_t currentDeltaMs, const Duo* const validTouches) noexcept {
+inline void scanEcho(Echo& currentEcho, const int32_t deltaMs, const Duo* const validTouches) noexcept {
 	switch( currentEcho.status ) {
 		case NJUDGED:
 			if( hasTouchNear(currentEcho.toX, currentEcho.toY, validTouches) )
@@ -91,18 +91,17 @@ inline void scanEcho(Echo& currentEcho, const int32_t currentDeltaMs, const Duo*
 		/* [2] Echo Behavior -- Drag Path */
 		case NJUDGED_LIT:
 			if(! hasTouchNear(currentEcho.toX, currentEcho.toY, validTouches) ) {
-				if( currentDeltaMs >= -100  &&  currentDeltaMs <= 100 )
-					currentEcho.status = HIT,			 currentEcho.deltaMs = currentDeltaMs,
-					Arf.eHit += currentEcho.isReal;
+				if( deltaMs >= -100  &&  deltaMs <= 100 )
+					currentEcho.status = HIT,			 currentEcho.deltaMs = deltaMs;
 				else
 					currentEcho.status = NJUDGED;
 			}
 			break;
 		case SPECIAL_LIT:
 			if(! hasTouchNear(currentEcho.toX, currentEcho.toY, validTouches) ) {
-				if( currentDeltaMs >= -100  &&  currentDeltaMs <= 100 )
-					currentEcho.status = HIT,			 currentEcho.deltaMs = currentDeltaMs,
-					Arf.eHit += currentEcho.isReal,		 Arf.spJudged++;
+				if( deltaMs >= -100  &&  deltaMs <= 100 )
+					currentEcho.status = HIT,			 currentEcho.deltaMs = deltaMs,
+					Arf.eHit++;
 				else
 					currentEcho.status = SPECIAL;
 			}
@@ -111,7 +110,7 @@ inline void scanEcho(Echo& currentEcho, const int32_t currentDeltaMs, const Duo*
 	}
 }
 
-inline void JudgeArfInternal(const Duo* const validTouches, const bool anyPressed, const bool anyReleased) noexcept {
+inline void judgeArfInternal(const Duo* const validTouches, const bool anyPressed, const bool anyReleased) noexcept {
 	if(anyReleased)								// Only 1 Group will be iterated.
 		Arf.blocked.clear();					// Pay attention when organizing an Arf4 Fumen.
 
@@ -119,7 +118,8 @@ inline void JudgeArfInternal(const Duo* const validTouches, const bool anyPresse
 		uint32_t minJudgedMs = NULL;
 		for( const auto i : Arf.idxGroups[Arf.msTime>>9].eIdx ) {						// Echo //
 			auto& currentEcho = Arf.echo[i];
-			const int32_t currentDeltaMs = Arf.msTime - currentEcho.toMs;
+			const uint32_t currentEchoMs  = currentEcho.toT;
+			const int32_t  currentDeltaMs = Arf.msTime - currentEchoMs;
 			if( currentDeltaMs < -370 )		break;
 			if( currentDeltaMs > +470 )		continue;
 
@@ -131,16 +131,15 @@ inline void JudgeArfInternal(const Duo* const validTouches, const bool anyPresse
 					/* [1] Tap Behavior -- Earliest & Anmitsu Path */
 					// No Pierce Path here; for Echoes, either Path of [2] should be applied instead.
 					if( minJudgedMs ) {
-						if( minJudgedMs != currentEcho.toMs )				 // Consider if maxDt < 0
+						if( minJudgedMs != currentEchoMs )					 // Consider if maxDt < 0
 							if( !safeToAnmitsu || currentDeltaMs < Arf.minDt || currentDeltaMs > Arf.maxDt )
 								continue;
 					}
 					else
-						minJudgedMs = currentEcho.toMs;
+						minJudgedMs = currentEchoMs;
 
 					if( currentEcho.status == SPECIAL_LIT )
-						Arf.spJudged++;
-					Arf.eHit += currentEcho.isReal;
+						Arf.eHit++;
 
 					currentEcho.deltaMs = currentDeltaMs;
 					currentEcho.status = HIT_LIT;
@@ -174,7 +173,7 @@ inline void JudgeArfInternal(const Duo* const validTouches, const bool anyPresse
 							 *  · (currentDeltaMs + deltaMs) > 0  -->  |currentDeltaMs| > |deltaMs|
 							 *  · (currentDeltaMs + deltaMs) < 0  -->  |currentDeltaMs| < |deltaMs|
 							 */
-							if( currentHint.deltaMs < -currentDeltaMs /* PENDING == -127, included */ )
+							if( currentHint.deltaMs <-currentDeltaMs /* PENDING == -127, included */ )
 								currentHint.deltaMs = currentDeltaMs;
 						continue;
 					}
@@ -196,7 +195,7 @@ inline void JudgeArfInternal(const Duo* const validTouches, const bool anyPresse
 	else {
 		for( const auto i : Arf.idxGroups[Arf.msTime>>9].eIdx ) {						// Echo //
 			auto& currentEcho = Arf.echo[i];
-			const int32_t currentDeltaMs = Arf.msTime - currentEcho.toMs;
+			const int32_t currentDeltaMs = Arf.msTime - (uint32_t)currentEcho.toT;
 			if( currentDeltaMs < -370 )		break;
 			if( currentDeltaMs > +470 )		continue;
 			scanEcho(currentEcho, currentDeltaMs, validTouches);
@@ -211,25 +210,23 @@ inline void JudgeArfInternal(const Duo* const validTouches, const bool anyPresse
 	}
 }
 
-inline void JudgeArfSweep() noexcept {
+void Ar::JudgeArfSweep() noexcept {
 	for( const auto i : Arf.idxGroups[Arf.msTime>>9].eIdx ) {							// Echo //
 		auto& currentEcho = Arf.echo[i];
-		const int32_t currentDeltaMs = Arf.msTime - currentEcho.toMs;
+		const int32_t currentDeltaMs = Arf.msTime - (int32_t)currentEcho.toT;
 		if( currentDeltaMs > 255 ) {}
 		else if( currentDeltaMs > 100 )											   /* [3] Lost Behavior */
 			switch( currentEcho.status ) {
-				case NJUDGED:	case NJUDGED_LIT:
-				case SPECIAL:	case SPECIAL_LIT:
-					currentEcho.status = LOST, Arf.lost += currentEcho.isReal;
+				case SPECIAL: case SPECIAL_LIT:		currentEcho.status = SPECIAL_LOST;	Arf.lost++;  break;
+				case NJUDGED: case NJUDGED_LIT:		currentEcho.status = LOST;
 				default:;   // break omitted
 			}
 		else if( currentDeltaMs >= 0 )								 /* [2] Echo Behavior -- Catch Path */
 			switch( currentEcho.status ) {
 				case SPECIAL_LIT:
-					Arf.spJudged++;   // No break here
+					Arf.eHit++;   // No break here
 				case NJUDGED_LIT:
 					currentEcho.status = HIT_LIT, currentEcho.deltaMs = currentDeltaMs;
-					Arf.eHit += currentEcho.isReal;
 				default:;   // break omitted
 			}
 		else break;
@@ -240,9 +237,8 @@ inline void JudgeArfSweep() noexcept {
 		if( currentDeltaMs > 255 ) {}
 		else if( currentDeltaMs > 100 )											   /* [3] Lost Behavior */
 			switch( currentHint.status ) {
-				case NJUDGED:	case NJUDGED_LIT:
-				case SPECIAL:	case SPECIAL_LIT:
-					currentHint.status = LOST, Arf.lost++;
+				case SPECIAL: case SPECIAL_LIT:		currentHint.status = SPECIAL_LOST;	Arf.lost++;  break;
+				case NJUDGED: case NJUDGED_LIT:		currentHint.status = LOST;			Arf.lost++;
 				default:;   // break omitted
 			}
 		else if( currentDeltaMs >= Arf.maxDt ) {			/* [1] Tap Behavior -- Pierce Path, Step II */
@@ -252,13 +248,13 @@ inline void JudgeArfSweep() noexcept {
 						Arf.spJudged++;   // No break here
 					case NJUDGED:
 						currentHint.deltaMs < Arf.minDt ? ( ++Arf.early, currentHint.status = EARLY ) :
-														  (  ++Arf.hHit, currentHint.status = HIT )   ;
+														  (  ++Arf.hHit, currentHint.status = HIT   ) ;
 						break;
 					case SPECIAL_LIT:
 						Arf.spJudged++;   // No break here
 					case NJUDGED_LIT:
 						currentHint.deltaMs < Arf.minDt ? ( ++Arf.early, currentHint.status = EARLY_LIT ) :
-														  (  ++Arf.hHit, currentHint.status = HIT_LIT )   ;
+														  (  ++Arf.hHit, currentHint.status = HIT_LIT   ) ;
 					default:;   // break omitted
 				}
 		}
@@ -266,7 +262,7 @@ inline void JudgeArfSweep() noexcept {
 	}
 }
 
-Arf4_API JudgeArf(lua_State* L) {
+int Ar::JudgeArf(lua_State* L) {
 	/* Usage:
 	 * Arf4.JudgeArf(x_set, y_set, mask)
 	 *
@@ -293,8 +289,8 @@ Arf4_API JudgeArf(lua_State* L) {
 		++whichTouch;
 		mask >>= 2;
 	}
-	validTouches[whichTouch].whole = ~(uint64_t)0;
+	validTouches[whichTouch].whole = -1;
 
-	return JudgeArfInternal(validTouches, anyPressed, anyReleased), 0;
+	return judgeArfInternal(validTouches, anyPressed, anyReleased), 0;
 }
 #endif

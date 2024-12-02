@@ -1,7 +1,6 @@
 //  Arf4 Inout  //
 #include <Arf4.h>
 #include <bitsery/bitsery.h>
-#include <dmsdk/dlib/hashtable.h>
 #include <bitsery/traits/adapter_buffer.h>
 #include <bitsery/traits/container_vector.h>
 #include <bitsery/traits/compact_value.h>
@@ -17,11 +16,11 @@ struct PseudoContext {
 #define Inout(TYPE, DETAILS)	template<typename S> void serialize(S& s, Arf4:: TYPE &its) {			   \
 			  s.enableBitPacking( [&its](typename S::BPEnabledType& inout) { DETAILS ; } ); }
 namespace bitsery {
-	static constexpr auto PY = ext::ValueRange<float>  {-8100.0f, 8100.0f, 1.0f/4};			// [16] Pos Y
-	static constexpr auto PX = ext::ValueRange<float>  {-16200.0f, 16200.0f, 1.0f/4};			// [17] Pos X
-	static constexpr auto MS = ext::ValueRange<float>  {0.0f, 1048575.0f, 1.0f};				// [20] Time in Ms
-	static constexpr auto DR = ext::ValueRange<float>  {-16.0f, 16.0f, 1.0f/131072};			// [21] Dt Ratio
-	static constexpr auto DT = ext::ValueRange<double> {0.0, (double)0xFFFFFF, 1.0/131072};	// [41] Dt Base
+	static constexpr auto PY = ext::ValueRange{-8100.0f, 8100.0f, 1.0f/4};			 // [16] Pos Y
+	static constexpr auto PX = ext::ValueRange{-16200.0f, 16200.0f, 1.0f/4};		 // [17] Pos X
+	static constexpr auto MS = ext::ValueRange{0.0f, 1048575.0f, 1.0f};				 // [20] Time(ms)
+	static constexpr auto DR = ext::ValueRange{-16.0f, 16.0f, 1.0f/131072};			 // [21] Dt Ratio
+	static constexpr auto DT = ext::ValueRange{0.0, (double)0xFFFFFF, 1.0/131072};  // [41] Dt Base
 	static constexpr auto CV = ext::CompactValueAsObject{};
 
 	Inout( Point,
@@ -37,21 +36,23 @@ namespace bitsery {
 		   inout.ext(its.x, PX);			inout.ext(its.y, PY);				inout.ext(its.whole, CV);
 	)
 
+	Inout( WishChild,
+		   inout.ext(its.dt, DT);			inout.ext(its.initRadius, DR);
+		   inout.ext(its.toDegree, CV);		inout.ext(its.fromDegree, CV);								)
 	Inout( DeltaNode,
-		   inout.ext(its.ratio, DR);		inout.ext(its.initMs, CV);									)
+		   inout.ext(its.init, CV);			inout.ext(its.value, DR);									)
 	Inout( DeltaGroup,
 		   inout.container(its.nodes, 65535);															)
-	Inout( ChildParam,
-		   inout.ext(its.whole, CV);																	)
 
 	Inout( Idx,
-		   inout.container2b(its.wIdx, 65535);
+		   inout.container4b(its.wIdx, 65535);
 		   inout.container2b(its.hIdx, 65535);
 		   inout.container2b(its.eIdx, 65535);
 	)
 	Inout( Wish,
-		   inout.ext(its.deltaGroup, CV);				inout.container(its.childDts, 65535);
-		   inout.container(its.nodes, 65535);			inout.container(its.childParams, 65535);
+		   inout.container(its.nodes, 65535);			inout.container(its.wishChilds, 65535);
+		   inout.ext(its.deltaGroup, CV);
+
 	)
 	Inout( Fumen,
 		   inout.container(its.idxGroups, 2047);		inout.container(its.deltaGroups, 65535);
@@ -69,7 +70,7 @@ namespace bitsery {
 
 
 /* Inout APIs */
-Arf4_API LoadArf(lua_State* L) {
+int Ar::LoadArf(lua_State* L) {
 	/* Usage:
 	 * local before_or_false, objcnt, wgo_required, hgo_required, ego_required = Arf4.LoadArf(path, is_auto)
 	 */
@@ -104,15 +105,15 @@ Arf4_API LoadArf(lua_State* L) {
 
 	// Deserialize
 	auto decodeState = bitsery::GetArf4Decoder(pBuf, bufSize);
-	const bool readError = decodeState.adapter().error() != bitsery::ReaderError::NoError;
-	const bool desError = !decodeState.adapter().isCompletedSuccessfully();
+	const bool readError =  decodeState.adapter().error() != bitsery::ReaderError::NoError,
+			   desError  = !decodeState.adapter().isCompletedSuccessfully();
 	if( readError || desError ) {
 		lua_pushboolean(L, false);
 		return free(pBuf), 1;
 	}
 
 	// Initialize
-	decodeState.object( Arf={} );								// Lazy clear only when the buffer
+	decodeState.object( Arf={} );							// Lazy clear only when the buffer
 	Arf.maxDt = ( InputDelta>63 ? 63 : InputDelta ) + 37;				//   is loaded successfully.
 	Arf.minDt = Arf.maxDt - 74;
 
@@ -120,29 +121,24 @@ Arf4_API LoadArf(lua_State* L) {
 		for( size_t i=1, l=deltaGroup.nodes.size(); i<l; ++i ) {
 			const auto& lastNode = deltaGroup.nodes[i-1];
 				  auto& thisNode = deltaGroup.nodes[i];
-			thisNode.baseDt = lastNode.baseDt + (thisNode.initMs - lastNode.initMs) * lastNode.ratio;
+			thisNode.base = lastNode.base + (thisNode.init - lastNode.init) * lastNode.value;
 		}
 		deltaGroup.it = deltaGroup.nodes.cbegin();
 	}
-	for( auto& wish: Arf.wish ) {
-		wish.pIt = wish.nodes.cbegin();
-		for( size_t i=0, l=wish.nodes.size()-1; i<l; ++i )
-			PrecalculatePosNode( wish.nodes[i] );
-	}
+	for( auto& wish: Arf.wish )
+		wish.pIt = wish.nodes.cbegin(),				wish.cIt = wish.wishChilds.cbegin();
 
 	if(isAuto) {
 		for( auto& hint : Arf.hint )
-			hint.status = hint.status ? SPECIAL_AUTO : AUTO;
+			hint.status = hint.status ? SPECIAL_AUTO : AUTO,	hint.deltaMs = 0;
 		for( auto& echo : Arf.echo )
-			echo.status = echo.status ? SPECIAL_AUTO : AUTO,
-			PrecalculateEcho(echo);
+			echo.status = echo.status ? SPECIAL_AUTO : AUTO;
 	}
 	else {
 		for( auto& hint : Arf.hint )
 			hint.status = hint.status ? SPECIAL : NJUDGED,		hint.deltaMs = PENDING;
 		for( auto& echo : Arf.echo )
-			echo.status = echo.status ? SPECIAL : NJUDGED,
-			PrecalculateEcho(echo);
+			echo.status = echo.status ? SPECIAL : NJUDGED;
 	}
 
 	return lua_pushnumber(L, Arf.before),			lua_pushnumber(L, Arf.objectCount),
@@ -151,9 +147,9 @@ Arf4_API LoadArf(lua_State* L) {
 }
 
 #ifdef AR_BUILD_VIEWER
-Arf4_API ExportArf(lua_State* L) {
+int Ar::ExportArf(lua_State* L) {
 	/* Usage:
-	 * local str_or_false = Arf4.ExportArf()
+	 * local str_or_nil = Arf4.ExportArf()
 	 */
 	for( auto& hint : Arf.hint )	hint.status = hint.status >= SPECIAL,	hint.deltaMs = 0;
 	for( auto& echo : Arf.echo )	echo.status = echo.status >= SPECIAL,	echo.deltaMs = 0;
@@ -161,15 +157,14 @@ Arf4_API ExportArf(lua_State* L) {
 	std::vector<uint8_t> buf;
 	auto encodeState = bitsery::GetArf4Encoder(buf);
 		 encodeState.object(Arf);
-		 encodeState.adapter().flush();
 
-	const size_t bufSize = encodeState.adapter().writtenBytesCount();
-				 bufSize ? lua_pushlstring( L, (char*)&buf[0], bufSize ) : lua_pushboolean(L, false);
+	const size_t bufSize = ( encodeState.adapter().flush(), encodeState.adapter().writtenBytesCount() );
+				 bufSize ? lua_pushlstring( L, (char*)&buf[0], bufSize ) : lua_pushnil(L);
 	return 1;
 }
 #else
 #include <dmsdk/dlib/crypt.h>
-Arf4_API TransformStr(lua_State* L) {
+int Ar::TransformStr(lua_State* L) {
 	/* Usage:
 	 * local output_str = Arf4.TransformStr(input_str, proof_str, is_decode)
 	 */
@@ -204,7 +199,7 @@ Arf4_API TransformStr(lua_State* L) {
 	}
 
 	// Encode //
-	uint32_t outputSize = inputSize * 2;
+	uint32_t outputSize = inputSize * 4 / 3 + 2;
 	const auto inputStrMutable = (uint8_t*)const_cast<char*>(inputStr),
 					 outputStr = (uint8_t*)malloc(outputSize);
 

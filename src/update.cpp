@@ -18,26 +18,26 @@ typedef dmVMath::Vector4 v4i, *v4;					typedef dmVMath::Quat Qt;
 
 /* Quat Utils & Render Methods */
 static const Qt maxQuat(0.0f, 0.0f, 0.594822786751341f, 0.803856860617217f);
-static Qt rotationToQuat(const double degree) noexcept {
-		  Duo getSinCosByDegree(double);
-	const Duo rads = getSinCosByDegree(degree);
+static Qt rotationToQuat(const float degree) noexcept {
+	const Duo rads = GetSinCosByDegree({ .f = degree });
 	return Qt(0.0f, 0.0f, rads.a, rads.b);
 }
-static bool renderWish(lua_State* L, const Duo centerPos, Duo info, uint16_t wgoUsed) {
+static bool renderWish(lua_State* L, const Duo mPos, Duo info, uint16_t wgoUsed) {
 	// info.a -> zPos (0.01 or 0.03)   info.b -> tint
-	Duo finalPos = {
-		.a = 900.0f + (centerPos.a * Arf.rotCos - centerPos.b * Arf.rotSin) * Arf.xScale + Arf.xDelta
-	};
+	Duo finalPos = { .a = 900.0f + (mPos.a * Arf.rotCos - mPos.b * Arf.rotSin) * Arf.xScale + Arf.xDelta };
 	if( finalPos.a >= Arf.boundL  &&  finalPos.a <= Arf.boundR ) {
-		finalPos.b = 540.0f + (centerPos.a * Arf.rotSin + centerPos.b * Arf.rotCos) * Arf.yScale + Arf.yDelta;
+		finalPos.b = 540.0f + (mPos.a * Arf.rotSin + mPos.b * Arf.rotCos) * Arf.yScale + Arf.yDelta;
 		if( finalPos.b >= Arf.boundD  &&  finalPos.b <= Arf.boundU ) {
-			if(! Arf.lastWgo.count(finalPos.whole) ) {
-				const auto thisWgo = ( lua_rawgeti(L, WGO, ++wgoUsed),
-												dmScript::CheckGOInstance(L, -1) );
-				/* Tint W */ lua_pushnumber(L, info.b), lua_rawseti(L, WTINT, wgoUsed);
-				dmGameObject::SetScale( thisWgo, 0.637f + 0.437f * (info.b = 1.0f - info.b) * info.b );
+			if(! Arf.lastWgo.contains(finalPos.whole) ) {
+				/* Tint W */
+				Arf.lastWgo[ finalPos.whole ] = ++wgoUsed;
+				lua_pushnumber(L, info.b), lua_rawseti(L, WTINT, wgoUsed);
+
+				/* Properties */
+				const auto thisWgo = ( lua_rawgeti(L, WGO, wgoUsed),
+											   dmScript::CheckGOInstance(L, -1) );
 				dmGameObject::SetPosition( thisWgo, p3(finalPos.a, finalPos.b, info.a) );
-				Arf.lastWgo[ finalPos.whole ] = wgoUsed;
+				dmGameObject::SetScale   ( thisWgo, 0.637f + 0.437f * (info.b = 1.0f - info.b) * info.b );
 				return lua_pop(L, 1), true;
 			}
 
@@ -48,25 +48,42 @@ static bool renderWish(lua_State* L, const Duo centerPos, Duo info, uint16_t wgo
 			/* Properties */
 			const auto lastWgo = ( lua_rawgeti(L, WGO, lastWgoLuaIdx),
 											dmScript::CheckGOInstance(L, -1) );
-			dmGameObject::SetPosition( lastWgo, dmGameObject::GetPosition(lastWgo)->setZ(info.a) );
+			dmGameObject::SetPosition( lastWgo, dmGameObject::GetPosition(lastWgo).setZ(0.01f) );
 			dmGameObject::SetScale	 ( lastWgo, 0.637f );
 			lua_pop(L, 1);
 		}
 	}
 	return false;
 }
+static bool renderEchoHelper(lua_State* L, const Echo& echo, const uint16_t ehgoUsed) {
+	Duo ehPos = { .a = 900.0f + (echo.toX * Arf.rotCos - echo.toY * Arf.rotSin) * Arf.xScale + Arf.xDelta };
+	if( ehPos.a >= Arf.boundL  &&  ehPos.a <= Arf.boundR ) {
+		ehPos.b = 540.0f + (echo.toX * Arf.rotSin + echo.toY * Arf.rotCos) * Arf.yScale + Arf.yDelta;
+		if( ehPos.b >= Arf.boundD  &&  ehPos.b <= Arf.boundU ) {
+			if(! Arf.lastEhgo.contains(ehPos.whole) ) {
+				Arf.lastEhgo[ ehPos.whole ] = 1;
+				dmGameObject::SetPosition(
+					( lua_rawgeti(L, EHGO, ehgoUsed+1), dmScript::CheckGOInstance(L,-1) ),
+					p3( ehPos.a, ehPos.b, 0.015625f )
+				);
+				return lua_pop(L, 1), true;
+			}
+		}
+	}
+	return false;
+}
 static bool renderAnim(lua_State* L, const Duo finalPos, const int16_t msPassed, const uint8_t status,
-					   uint16_t agoUsed) {   // OutQuad: 1-(1-x)(1-x)   -->   1-(1-2x+x*x)   -->   x*(2-x)
+					 uint16_t agoUsed) {   // OutQuad: 1-(1-x)(1-x)  -->  1-(1-2x+x*x)  -->  x*(2-x)
 	if( msPassed > 370 )		return false;
 	const auto tint = ( lua_rawgeti(L, ATINT, ++agoUsed), dmScript::CheckVector4(L, -1) );
 	const auto lAgo = ( lua_rawgeti(L, AGOL, agoUsed), dmScript::CheckGOInstance(L, -1) ),
 			   rAgo = ( lua_rawgeti(L, AGOR, agoUsed), dmScript::CheckGOInstance(L, -1) );
 
 	/* Position */ {
-		const float finalPosZ = -msPassed * 0.00001f;
-		const auto  finalPos3 = p3( finalPos.a, finalPos.b, finalPosZ );
+		const float finalPosZ = msPassed * 0.00001f;
+			  auto  finalPos3 = p3( finalPos.a, finalPos.b, finalPosZ );
 		dmGameObject::SetPosition( lAgo, finalPos3 );
-		dmGameObject::SetPosition( rAgo, finalPos3->setZ(finalPosZ + 0.00001f) );
+		dmGameObject::SetPosition( rAgo, finalPos3.setZ(finalPosZ + 0.00001f) );
 	}
 
 	/* Tint XYZ */
@@ -89,14 +106,12 @@ static bool renderAnim(lua_State* L, const Duo finalPos, const int16_t msPassed,
 
 	/* Tint W */
 	if( msPassed < 73 ) {
-		float w = msPassed * 0.01f;
-			  w = 0.637f * w * (2.0f - w);
-		tint -> setW(w);
+		const float w = msPassed * 0.01f;
+		tint -> setW( 0.17199f + 0.637f * w * (2.0f-w) );
 	}
 	else {
-		float w = (msPassed - 73) / 297.0f;
-			  w = 0.637f * w * (2.0f - w);
-		tint -> setW(0.637f - w);
+		const float w = (msPassed - 73) / 297.0f;
+		tint -> setW( 0.637f * (1.0f - w*w) );
 	}
 
 	/* Rotation & Scale */
@@ -110,7 +125,7 @@ static bool renderAnim(lua_State* L, const Duo finalPos, const int16_t msPassed,
 		dmGameObject::SetScale(lAgo, 1.637f);
 	}
 	const float rightRatio = msPassed / 370.0f;
-	dmGameObject::SetRotation( rAgo, rotationToQuat(45.0f  -  8.0f * rightRatio) );
+	dmGameObject::SetRotation( rAgo, rotationToQuat(45.0f - 8.0f * rightRatio) );
 	dmGameObject::SetScale( rAgo, 1.0f + 0.637f * rightRatio * (2.0f - rightRatio) );
 
 	return true;
@@ -118,127 +133,105 @@ static bool renderAnim(lua_State* L, const Duo finalPos, const int16_t msPassed,
 
 
 /* Main */
-Arf4_API UpdateArf(lua_State* L) {
+int Ar::UpdateArf(lua_State* L) {
 	/* Usage:
-	 * local wgo_used, hgo_used, ego_used, ago_used, h_playhs, e_playhs = Arf4.UpdateArf(
-	 *     ms, dt, wgos, hgos, egos, ehgos, algos, argos, wtints, htints, etints, atints)
+	 * local wgo_used, hgo_used, ego_used, ehgo_used, ago_used, h_playhs, e_playhs = Arf4.UpdateArf(
+	 *       ms, dt, wgos, hgos, egos, ehgos, algos, argos, wtints, htints, etints, atints)
 	 */
 	Arf.msTime = (uint32_t)luaL_checknumber(L, 1); {
 		if( Arf.msTime < 2 )						Arf.msTime = 2;
 		else if( Arf.msTime >= Arf.before )			return 0;
 	}
 	const uint32_t frameEndMs = Arf.msTime + (uint32_t)(luaL_checknumber(L, 2) * 1000.0);
-		  uint16_t wgoUsed = 0, hgoUsed = 0, egoUsed = 0, agoUsed = 0;
-	struct{uint8_t hint:4 = false, echo:4 = false;} playHitSoundThisFrame;
+		  uint16_t wgoUsed = 0, hgoUsed = 0, egoUsed = 0, ehgoUsed = 0 , agoUsed = 0;
+	struct{uint8_t hint:1 = false, echo:1 = false;} hitSound;
 	JudgeArfSweep();
 
 	/* DeltaGroups */
 	for( auto& deltaGroup : Arf.deltaGroups ) {
-		while( deltaGroup.it != deltaGroup.nodes.cbegin()  &&  Arf.msTime < deltaGroup.it->initMs )
+		while( deltaGroup.it != deltaGroup.nodes.cbegin()  &&  Arf.msTime < deltaGroup.it->init )
 			--deltaGroup.it;
-		const auto lastNodeIt = deltaGroup.nodes.cend() - 1;
-		while( deltaGroup.it != lastNodeIt ) {
-			if( Arf.msTime < (deltaGroup.it+1)->initMs ) {
-				deltaGroup.dt = deltaGroup.it->baseDt + (Arf.msTime - deltaGroup.it->initMs) * deltaGroup.it->ratio;
+		const VCIT(DeltaNode) lastIt = deltaGroup.nodes.cend() - 1;
+		while( deltaGroup.it != lastIt ) {
+			if( Arf.msTime < (deltaGroup.it+1)->init ) {
+				deltaGroup.dt = deltaGroup.it->base + (Arf.msTime - deltaGroup.it->init) * deltaGroup.it->value;
 				goto NEXT_GROUP;
 			}
 			++deltaGroup.it;
 		}
-		if( deltaGroup.it == lastNodeIt )
-			deltaGroup.dt = deltaGroup.it->baseDt + (Arf.msTime - deltaGroup.it->initMs) * deltaGroup.it->ratio;
+		if( deltaGroup.it == lastIt )
+			deltaGroup.dt = lastIt->base + (Arf.msTime - lastIt->init) * lastIt->value;
 		NEXT_GROUP:;
 	}
 
 	/* Wish */
+	Arf.lastWgo.clear();
 	for( const auto wi : Arf.idxGroups[ Arf.msTime>>9 ].wIdx ) {
 		auto& currentWish = Arf.wish[wi];
-		Duo   nodePos;
-
-		// Nodes //
-		if( Arf.msTime <  currentWish.nodes[0].ms )
+		if( Arf.msTime < currentWish.nodes[0].t )
 			break;
 
-		const auto lastNodeIt = currentWish.nodes.cend() - 1;
-		if( Arf.msTime >= lastNodeIt->ms )
+		const VCIT(Point) lastNodeIt = currentWish.nodes.cend() - 1;
+		if( Arf.msTime >= lastNodeIt->t )
 			continue;
-		while( currentWish.pIt != currentWish.nodes.cbegin()  &&  Arf.msTime < currentWish.pIt->ms )
+
+		Duo nodePos;
+		while( currentWish.pIt != currentWish.nodes.cbegin()  &&  Arf.msTime < currentWish.pIt->t )
 			--currentWish.pIt;
 		while( currentWish.pIt != lastNodeIt ) {
-			if( Arf.msTime < (currentWish.pIt+1)->ms ) {
-				const float existMs = Arf.msTime - currentWish.nodes[0].ms;
+			const VCIT(Point) nextNodeIt = currentWish.pIt+1;
+			if( Arf.msTime < nextNodeIt->t ) {
+				const float existMs = Arf.msTime - currentWish.nodes[0].t;
 				wgoUsed += renderWish( L,
-					nodePos = InterpolatePosNode( *currentWish.pIt, *(currentWish.pIt+1) ),
-					{ .a = 0.01f, .b = existMs >= 151 ? 1 : existMs / 151.0f } , wgoUsed );
+					nodePos = InterpolatePoint( *currentWish.pIt, *nextNodeIt ),
+					{ .a = 0.01f, .b = existMs >= 151 ? 1.0f : existMs / 151.0f } , wgoUsed );
 				break;
 			}
 			++currentWish.pIt;
 		}
 
-		// WishChilds //
+		/* WishChild */
 		const double currentDt = Arf.deltaGroups[ currentWish.deltaGroup ].dt;
-		const auto lastWishChildIt = currentWish.wishChilds.cend() - 1;
-		if( currentWish.wishChilds.empty()						||
-			lastWishChildIt->dt <= currentDt					||
-			currentWish.wishChilds.cbegin()->dt > currentDt + 16 )	 continue;
-		if( currentWish.cIt != currentWish.nodes.cbegin()  &&  (currentWish.cIt-1)->dt > currentDt ) {
+		const VCIT(WishChild) lastChildIt = currentWish.wishChilds.cend() - 1;
+		if( currentWish.wishChilds.empty()  ||  currentDt >= lastChildIt->dt
+											||  currentDt <  currentWish.wishChilds[0].dt - 16 )
+			continue;
+		if( currentWish.cIt != currentWish.wishChilds.cbegin()  &&  (currentWish.cIt-1)->dt > currentDt ) {
 			do	 --currentWish.cIt;
-			while( currentWish.cIt != currentWish.nodes.cbegin()  &&  (currentWish.cIt-1)->dt > currentDt );
+			while( currentWish.cIt != currentWish.wishChilds.cbegin()  &&  (currentWish.cIt-1)->dt > currentDt );
 		}
-		else while( currentWish.cIt != lastWishChildIt  &&  currentWish.cIt->dt <= currentDt )
+		else while( currentWish.cIt != lastChildIt  &&  currentWish.cIt->dt <= currentDt )
 			++currentWish.cIt;
 
-		// Rough Range of Distance (0, 16)
-		for( auto cItLocal = currentWish.cIt; cItLocal <= lastWishChildIt; ++cItLocal ) {
-			const auto distance = (uint16_t)( (cItLocal->dt - currentDt) * 512.0 );
-			if( distance > 8192 /* 16<<9 */ )				break;		// So aNodes[0].distance is the
-			if( distance > cItLocal->aNodes[0].distance )	continue;   //   "Max Visible Distance".
+		for( VCIT(WishChild) thisCit = currentWish.cIt; thisCit != lastChildIt; ++thisCit ) {
+			const float distance = thisCit->dt - currentDt;
+			if( distance > 16.0 )					 break;
+			if( distance > thisCit->initRadius )  continue;
 
-			Duo childSinCos, getSinCosByDegree(double);
-			const auto lastAnodeIt = cItLocal->aNodes.cend() - 1;
-			while( cItLocal->aIt != cItLocal->aNodes.cbegin()  &&  distance > cItLocal->aIt->distance )
-				--cItLocal->aIt;
-			while( cItLocal->aIt != lastAnodeIt ) {
-				const auto currentAnIt = cItLocal->aIt, nextAnIt = currentAnIt + 1;
-				const uint16_t nextAnDist = nextAnIt->distance;
-				if( distance > nextAnDist ) {
-					float calculateEasedRatio(float, uint8_t);
-					const uint16_t currentAnDist = currentAnIt->distance;
-					const int16_t  currentAnDeg  = currentAnIt->degree;
-
-					childSinCos = getSinCosByDegree(
-						currentAnDeg + (nextAnIt->degree - currentAnDeg) * calculateEasedRatio(
-							(float)(distance-currentAnDist) / (nextAnDist-currentAnDist), currentAnIt->ease
-						)
-					);
-					goto RENDER_WISHCHILD;
-				}
-				++cItLocal->aIt;
-			}
-			if( cItLocal->aIt == lastAnodeIt )
-				childSinCos = getSinCosByDegree( (double)cItLocal->aIt->degree );
-
-			RENDER_WISHCHILD:
-			const float existDistRatio = 1.0f - distance / cItLocal->aNodes[0].distance;
+			const float distRatio = 1.0 - distance / thisCit->initRadius;
+			const Duo sinCos = GetSinCosByDegree(
+				{ .f = thisCit->fromDegree + (thisCit->toDegree - thisCit->fromDegree) * distRatio }
+			);
 			wgoUsed += renderWish( L,
-				{ .a = nodePos.a + distance * childSinCos.b, .b = nodePos.b + distance * childSinCos.a },
-				{ .a = 0.03f, .b = existDistRatio >= 0.237f ? 1 : existDistRatio / 0.237f }, wgoUsed
+				{ .a = nodePos.a + distance * sinCos.b, .b = nodePos.b + distance * sinCos.a },
+				{ .a = 0.03f, .b = distRatio >= 0.237f ? 1 : distRatio / 0.237f }, wgoUsed
 			);
 		}
 	}
 
-	/* Hint, Echo */
+	/* Hint */
 	for( const auto hi : Arf.idxGroups[ Arf.msTime>>9 ].hIdx ) {
-		const auto& currentHint = Arf.hint[hi];
-		const auto  frameOffset  = (int32_t)Arf.msTime - (int32_t)currentHint.ms;
-		if( frameOffset < -510 )		break;
-		if( frameOffset > +470 )		continue;
+		const auto&   currentHint = Arf.hint[hi];
+		const int32_t frameOffset = (int32_t)Arf.msTime - (int32_t)currentHint.ms;
+		if( frameOffset < -510 )	 break;
+		if( frameOffset > +470 )	 continue;
 
 		const Duo finalPos = {
 			.a = 900.0f + (currentHint.x * Arf.rotCos - currentHint.y * Arf.rotSin) * Arf.xScale + Arf.xDelta,
 			.b = 540.0f + (currentHint.x * Arf.rotSin + currentHint.y * Arf.rotCos) * Arf.yScale + Arf.yDelta
 		};
-		const GO hintGo   = ( lua_rawgeti(L, HGO, hgoUsed+1), dmScript::CheckGOInstance(L, -1) );
-		const v4 hintTint = ( lua_rawgeti(L, HTINT, hgoUsed+1), dmScript::CheckVector4(L, -1)  );
+		const GO hintGo   = ( lua_rawgeti(L, HGO,   ++hgoUsed), dmScript::CheckGOInstance(L,-1) );
+		const v4 hintTint = ( lua_rawgeti(L, HTINT, hgoUsed--), dmScript::CheckVector4(L,-1)    );
 		lua_pop(L, 2);
 
 		if( frameOffset < -370 ) {
@@ -287,15 +280,16 @@ Arf4_API UpdateArf(lua_State* L) {
 				agoUsed += renderAnim(L, finalPos, frameOffset-currentHint.deltaMs, 2, agoUsed);
 				break;
 			case LOST:
-				{	dmGameObject::SetPosition( hintGo,
-										p3(finalPos.a, finalPos.b, 0.005f - frameOffset * 0.0001f) );
-					float color = 0.437f - frameOffset * 0.00037f;		hintTint -> setX(color);
-						  color *= 0.51f;								hintTint -> setY(color).setZ(color);
-					hgoUsed++;
-				}	break;
+			case SPECIAL_LOST: {
+				dmGameObject::SetPosition( hintGo,
+									p3(finalPos.a, finalPos.b, 0.005f - frameOffset * 0.0001f) );
+				float color =  0.437f - frameOffset * 0.00037f;		hintTint -> setX(color);
+					  color *= 0.51f;								hintTint -> setY(color).setZ(color);
+				hgoUsed++;
+			}	break;
 			default: {   // AUTO & SPECIAL_AUTO
 				if( currentHint.ms >= Arf.msTime  &&  currentHint.ms < frameEndMs )
-					playHitSoundThisFrame.hint = true;
+					hitSound.hint = true;
 				if( frameOffset < 0 )				goto HCASE_AUTO_U0;
 				if( frameOffset < 101 )				goto HCASE_AUTO_HINT_ANIM;
 				else								goto HCASE_AUTO_ANIM;
@@ -307,11 +301,14 @@ Arf4_API UpdateArf(lua_State* L) {
 			default:;
 		}
 	}
-	for( const auto ei : Arf.idxGroups[ Arf.msTime>>9 ].eIdx ) {
-		auto& currentEcho = Arf.echo[ei];
-		if( Arf.msTime < currentEcho.fromMs )		continue;
 
-		const auto frameOffset  = (int32_t)Arf.msTime - (int32_t)currentEcho.toMs;
+	/* Echo */
+	Arf.lastEhgo.clear();
+	for( const auto ei : Arf.idxGroups[ Arf.msTime>>9 ].eIdx ) {
+		const auto& currentEcho = Arf.echo[ei];
+		if( Arf.msTime < currentEcho.fromT )		continue;
+
+		const int32_t frameOffset  = (int32_t)Arf.msTime - (int32_t)currentEcho.toT;
 		if( frameOffset > 470 )						continue;
 
 		const Duo echoPos = InterpolateEcho(currentEcho);
@@ -319,59 +316,46 @@ Arf4_API UpdateArf(lua_State* L) {
 			.a = 900.0f + (echoPos.a * Arf.rotCos - echoPos.b * Arf.rotSin) * Arf.xScale + Arf.xDelta,
 			.b = 540.0f + (echoPos.a * Arf.rotSin + echoPos.b * Arf.rotCos) * Arf.yScale + Arf.yDelta
 		};
-		const p3 ehPos3 = p3(
-			900.0f + (currentEcho.toX * Arf.rotCos - currentEcho.toY * Arf.rotSin) * Arf.xScale + Arf.xDelta,
-			540.0f + (currentEcho.toX * Arf.rotSin + currentEcho.toY * Arf.rotCos) * Arf.yScale + Arf.yDelta,
-			0.01f
-		);
-
-		const GO echoGo   = ( lua_rawgeti(L, EGO, egoUsed+1), dmScript::CheckGOInstance(L, -1) ),
-				 echoHgo  = ( lua_rawgeti(L, EHGO, egoUsed+1), dmScript::CheckGOInstance(L, -1) );
-		const v4 echoTint = ( lua_rawgeti(L, ETINT, egoUsed+1), dmScript::CheckVector4(L, -1)  );
-		lua_pop(L, 3);
+		const GO echoGo   = ( lua_rawgeti(L, EGO,   ++egoUsed), dmScript::CheckGOInstance(L, -1) );
+		const v4 echoTint = ( lua_rawgeti(L, ETINT, egoUsed--), dmScript::CheckVector4(L, -1)    );
+		lua_pop(L, 2);
 
 		if( frameOffset < -370 ) {
-			dmGameObject::SetPosition( echoHgo, ehPos3 );
-			dmGameObject::SetPosition( echoGo, p3(egoPos.a, egoPos.b, 0.02f) );
-
 			const float color = 0.1337f + (frameOffset + 510) * 0.0005f;
-				  float life = Arf.msTime - currentEcho.fromMs;
+				  float life = Arf.msTime - currentEcho.fromT;
 						life = life > 151 ? 1 : life / 151.0f;
 			echoTint -> setX(color).setY(color).setZ(color).setW(life);
 
-			dmGameObject::SetScale( echoHgo, 0.637f + 0.437f * (life = 1.0f - life) * life );
+			dmGameObject::SetScale( echoGo, 0.637f + 0.437f * (life = 1.0f - life) * life );
+			dmGameObject::SetPosition( echoGo, p3(egoPos.a, egoPos.b, 0.02f) );
+			ehgoUsed += renderEchoHelper(L, currentEcho, ehgoUsed);
 			egoUsed++;
 		}
 		else if( frameOffset <= 370) switch(currentEcho.status) {
 			case NJUDGED:
 			case SPECIAL: {
-				dmGameObject::SetPosition( echoHgo, ehPos3 );
-				dmGameObject::SetPosition( echoGo, p3(egoPos.a, egoPos.b, 0.02f) );
-
-				float life = Arf.msTime - currentEcho.fromMs;
+				float life = Arf.msTime - currentEcho.fromT;
 					  life = life > 151 ? 1 : life / 151.0f;
 				echoTint -> setX(0.2037f).setY(0.2037f).setZ(0.2037f).setW(life);
 
-				dmGameObject::SetScale( echoHgo, 0.637f + 0.437f * (life = 1.0f - life) * life );
+				dmGameObject::SetScale( echoGo, 0.637f + 0.437f * (life = 1.0f - life) * life );
+				dmGameObject::SetPosition( echoGo, p3(egoPos.a, egoPos.b, 0.02f) );
+				ehgoUsed += renderEchoHelper(L, currentEcho, ehgoUsed);
 				egoUsed++;
 			}	break;
 			case NJUDGED_LIT:
 			case SPECIAL_LIT: ECASE_AUTO_U0: {
-				dmGameObject::SetPosition( echoHgo, ehPos3 );
-				dmGameObject::SetPosition( echoGo, p3(egoPos.a, egoPos.b, 0.02f) );
-
-				float life = Arf.msTime - currentEcho.fromMs;
+				float life = Arf.msTime - currentEcho.fromT;
 					  life = life > 151 ? 1 : life / 151.0f;
 				echoTint -> setX(0.3737f).setY(0.3737f).setZ(0.3737f).setW(life);
 
-				dmGameObject::SetScale( echoHgo, 0.637f + 0.437f * (life = 1.0f - life) * life );
+				dmGameObject::SetScale( echoGo, 0.637f + 0.437f * (life = 1.0f - life) * life );
+				dmGameObject::SetPosition( echoGo, p3(egoPos.a, egoPos.b, 0.02f) );
+				ehgoUsed += renderEchoHelper(L, currentEcho, ehgoUsed);
 				egoUsed++;
 			}	break;
 			case HIT_LIT: ECASE_HIT_LIT: {
-				dmGameObject::SetPosition( echoHgo, ehPos3 );
-				dmGameObject::SetPosition( echoGo, p3(egoPos.a, egoPos.b, 0.02f) );
-
-				float life = Arf.msTime - currentEcho.fromMs;
+				float life = Arf.msTime - currentEcho.fromT;
 					  life = life > 151 ? 1 : life / 151.0f;
 				switch(Arf.daymode) {
 					case true:
@@ -380,27 +364,28 @@ Arf4_API UpdateArf(lua_State* L) {
 						echoTint -> setX(H_HIT_R).setY(H_HIT_R).setZ(H_HIT_R).setW(life);
 				}
 
-				dmGameObject::SetScale( echoHgo, 0.637f + 0.437f * (life = 1.0f - life) * life );
+				dmGameObject::SetScale( echoGo, 0.637f + 0.437f * (life = 1.0f - life) * life );
+				dmGameObject::SetPosition( echoGo, p3(egoPos.a, egoPos.b, 0.02f) );
+				ehgoUsed += renderEchoHelper(L, currentEcho, ehgoUsed);
 				egoUsed++;
 			}   // No break here
 			case HIT: ECASE_HIT:
-				agoUsed += renderAnim( L, { .a = ehPos3.getX(), .b = ehPos3.getY() },
-							  frameOffset - currentEcho.deltaMs, 0, agoUsed );
+				agoUsed += renderAnim(L, egoPos, frameOffset-currentEcho.deltaMs, 0, agoUsed);
 				break;
-			case LOST: {
-				dmGameObject::SetPosition( echoHgo, ehPos3 );
-				dmGameObject::SetPosition( echoGo, p3(egoPos.a, egoPos.b, 0.02f) );
-
+			case LOST:
+			case SPECIAL_LOST: {
 				float color = 0.437f - frameOffset *  0.00037f;
-				if(currentEcho.isReal)		 color *= 0.51f;
-				echoTint -> setX(color).setY(color).setZ(color).setW(1.0f);
+				echoTint -> setX(color).setY(color *= currentEcho.status==SPECIAL_LOST ? 0.51f : 1)
+									   .setZ(color).setW(1.0f);
 
-				dmGameObject::SetScale( echoHgo, 0.637f );
+				dmGameObject::SetScale( echoGo, 0.637f );
+				dmGameObject::SetPosition( echoGo, p3(egoPos.a, egoPos.b, 0.02f) );
+				ehgoUsed += renderEchoHelper(L, currentEcho, ehgoUsed);
 				egoUsed++;
 			}	break;
 			default: {   // AUTO & SPECIAL_AUTO
-				if( currentEcho.toMs >= Arf.msTime  &&  currentEcho.toMs < frameEndMs )
-					playHitSoundThisFrame.echo = true;
+				if( currentEcho.toT >= Arf.msTime  &&  currentEcho.toT < frameEndMs )
+					hitSound.echo = true;
 				if( frameOffset < 0 )				goto ECASE_AUTO_U0;
 				if( frameOffset < 101 )				goto ECASE_HIT_LIT;
 				else								goto ECASE_HIT;
@@ -413,7 +398,7 @@ Arf4_API UpdateArf(lua_State* L) {
 		}
 	}
 
-	return lua_pushinteger(L, wgoUsed), lua_pushinteger(L, hgoUsed), lua_pushinteger(L, egoUsed),
-		   lua_pushinteger(L, agoUsed), lua_pushboolean(L, playHitSoundThisFrame.hint),
-		   lua_pushboolean(L, playHitSoundThisFrame.echo), 6;
+	return lua_pushinteger(L, wgoUsed),  lua_pushinteger(L, hgoUsed), lua_pushinteger(L, egoUsed),
+		   lua_pushinteger(L, ehgoUsed), lua_pushinteger(L, agoUsed), lua_pushboolean(L, hitSound.hint),
+																	  lua_pushboolean(L, hitSound.echo), 7;
 }
