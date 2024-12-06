@@ -47,9 +47,9 @@ namespace Arf4 {
 
 	// DeltaTime & WishChild
 	struct DeltaNode {
-		double						base;
-		uint32_t					init;
-		float						value;			   // for SC: BPM * Scale / 15000 -> {-16, 16, 1/131072}
+		double						baseDt;
+		uint32_t					initMs;
+		float						ratio;			   // BPM * Scale / 15000 -> {-16, 16, 1/131072}
 	};
 	struct DeltaGroup {
 		std::vector<DeltaNode>		nodes;
@@ -80,13 +80,11 @@ namespace Arf4 {
 
 	// Fumen
 	struct Wish {
-		std::vector<Point>			nodes;
-		std::vector<WishChild>		wishChilds;
-		//------------------------//
-		VCIT(Point)					pIt;
-		VCIT(WishChild)				cIt;
-		//------------------------//
 		uint64_t					deltaGroup;
+		std::vector<WishChild>		wishChilds;
+		std::vector<Point>			nodes;
+		VCIT(WishChild)				cIt;
+		VCIT(Point)					pIt;
 	};
 	struct Fumen {
 		std::vector<Idx>			idxGroups;
@@ -94,7 +92,6 @@ namespace Arf4 {
 		std::vector<Wish>			wish;
 		std::vector<Hint>			hint;
 		std::vector<Echo>			echo;
-		//------------------------//
 		Ar64(
 			uint64_t				before:20, objectCount:15;
 			uint64_t				wgoRequired:10 = 1023, hgoRequired:9, egoRequired:10;
@@ -113,13 +110,19 @@ namespace Arf4 {
 		std::vector<Duo>			blocked;
 		/*------------------------*/
 		#ifdef AR_BUILD_VIEWER						   // Use new to create Helpers, and use
-			uint32_t				verseWidx;		   //   delete to free them.
+			struct Tempo {							   //   delete to free them.
+				float				from, barLen;
+				uint16_t			a, b;
+			};
+			uint32_t				verseWidx;
 			uint16_t				verseHidx, verseEidx;
-			std::vector<DeltaNode>	bpmList;
-			VCIT(DeltaNode)			bpmIt;
+			std::vector<Tempo>		tempoList;
+			VCIT(Tempo)				tempoIt;
 		#endif
 	};
 }
+extern  Arf4::Fumen  Arf;
+extern  int8_t		 InputDelta;
 
 namespace Ar {
 	using namespace Arf4;
@@ -168,6 +171,3 @@ namespace Ar {
 	 int  PartialEase(lua_State* L);
 	 int  Ease(lua_State* L);
 }
-
-extern  Arf4::Fumen  Arf;
-extern  int8_t		 InputDelta;

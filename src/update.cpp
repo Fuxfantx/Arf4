@@ -149,18 +149,18 @@ int Ar::UpdateArf(lua_State* L) {
 
 	/* DeltaGroups */
 	for( auto& deltaGroup : Arf.deltaGroups ) {
-		while( deltaGroup.it != deltaGroup.nodes.cbegin()  &&  Arf.msTime < deltaGroup.it->init )
+		while( deltaGroup.it != deltaGroup.nodes.cbegin()  &&  Arf.msTime < deltaGroup.it->initMs )
 			--deltaGroup.it;
 		const VCIT(DeltaNode) lastIt = deltaGroup.nodes.cend() - 1;
 		while( deltaGroup.it != lastIt ) {
-			if( Arf.msTime < (deltaGroup.it+1)->init ) {
-				deltaGroup.dt = deltaGroup.it->base + (Arf.msTime - deltaGroup.it->init) * deltaGroup.it->value;
+			if( Arf.msTime < (deltaGroup.it+1)->initMs ) {
+				deltaGroup.dt = deltaGroup.it->baseDt + (Arf.msTime - deltaGroup.it->initMs) * deltaGroup.it->ratio;
 				goto NEXT_GROUP;
 			}
 			++deltaGroup.it;
 		}
 		if( deltaGroup.it == lastIt )
-			deltaGroup.dt = lastIt->base + (Arf.msTime - lastIt->init) * lastIt->value;
+			deltaGroup.dt = lastIt->baseDt + (Arf.msTime - lastIt->initMs) * lastIt->ratio;
 		NEXT_GROUP:;
 	}
 

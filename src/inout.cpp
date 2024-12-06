@@ -18,8 +18,8 @@ struct PseudoContext {
 namespace bitsery {
 	static constexpr auto PY = ext::ValueRange{-8100.0f, 8100.0f, 1.0f/4};			 // [16] Pos Y
 	static constexpr auto PX = ext::ValueRange{-16200.0f, 16200.0f, 1.0f/4};		 // [17] Pos X
-	static constexpr auto MS = ext::ValueRange{0.0f, 1048575.0f, 1.0f};				 // [20] Time(ms)
-	static constexpr auto DR = ext::ValueRange{-16.0f, 16.0f, 1.0f/131072};			 // [21] Dt Ratio
+	static constexpr auto MS = ext::ValueRange{0.0f, 1048575.0f, 1.0f};			 // [20] Time(ms)
+	static constexpr auto DR = ext::ValueRange{-16.0f, 16.0f, 1.0f/131072};		 // [21] Dt Ratio
 	static constexpr auto DT = ext::ValueRange{0.0, (double)0xFFFFFF, 1.0/131072};  // [41] Dt Base
 	static constexpr auto CV = ext::CompactValueAsObject{};
 
@@ -40,7 +40,7 @@ namespace bitsery {
 		   inout.ext(its.dt, DT);			inout.ext(its.initRadius, DR);
 		   inout.ext(its.toDegree, CV);		inout.ext(its.fromDegree, CV);								)
 	Inout( DeltaNode,
-		   inout.ext(its.init, CV);			inout.ext(its.value, DR);									)
+		   inout.ext(its.initMs, CV);		inout.ext(its.ratio, DR);									)
 	Inout( DeltaGroup,
 		   inout.container(its.nodes, 65535);															)
 
@@ -121,7 +121,7 @@ int Ar::LoadArf(lua_State* L) {
 		for( size_t i=1, l=deltaGroup.nodes.size(); i<l; ++i ) {
 			const auto& lastNode = deltaGroup.nodes[i-1];
 				  auto& thisNode = deltaGroup.nodes[i];
-			thisNode.base = lastNode.base + (thisNode.init - lastNode.init) * lastNode.value;
+			thisNode.baseDt = lastNode.baseDt + (thisNode.initMs - lastNode.initMs) * lastNode.ratio;
 		}
 		deltaGroup.it = deltaGroup.nodes.cbegin();
 	}
