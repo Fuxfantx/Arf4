@@ -306,10 +306,10 @@ int Ar::UpdateArf(lua_State* L) {
 	Arf.lastEhgo.clear();
 	for( const auto ei : Arf.idxGroups[ Arf.msTime>>9 ].eIdx ) {
 		const auto& currentEcho = Arf.echo[ei];
-		if( Arf.msTime < currentEcho.fromT )		continue;
+		const int32_t frameOffset  = (float)Arf.msTime - (int32_t)currentEcho.toT;
 
-		const int32_t frameOffset  = (int32_t)Arf.msTime - (int32_t)currentEcho.toT;
-		if( frameOffset > 470 )						continue;
+		if( frameOffset < -510  &&  Arf.msTime < currentEcho.fromT )	 continue;
+		if( frameOffset > +470 )										 continue;
 
 		const Duo echoPos = InterpolateEcho(currentEcho, Arf.msTime);
 		const Duo egoPos = {

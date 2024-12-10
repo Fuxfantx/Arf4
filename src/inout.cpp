@@ -42,22 +42,21 @@ namespace bitsery {
 	Inout( DeltaNode,
 		   inout.ext(its.init, MS);			inout.ext(its.value, DR);									)
 	Inout( DeltaGroup,
-		   inout.container(its.nodes, 65535);															)
+		   inout.container(its.nodes, 65536);															)
 
 	Inout( Idx,
-		   inout.container4b(its.wIdx, 65535);
-		   inout.container2b(its.hIdx, 65535);
-		   inout.container2b(its.eIdx, 65535);
+		   inout.container4b(its.wIdx, 65536);
+		   inout.container2b(its.hIdx, 65536);
+		   inout.container2b(its.eIdx, 65536);
 	)
 	Inout( Wish,
-		   inout.container(its.nodes, 65535);			inout.container(its.wishChilds, 65535);
+		   inout.container(its.nodes, 65536);			inout.container(its.wishChilds, 65536);
 		   inout.ext(its.deltaGroup, CV);
-
 	)
 	Inout( Fumen,
-		   inout.container(its.idxGroups, 2047);		inout.container(its.deltaGroups, 65535);
-		   inout.container(its.wish, 131071);			inout.container(its.hint, 32767);
-		   inout.container(its.echo, 32767);			inout.ext(its.whole, CV);
+		   inout.container(its.idxGroups, 2048);		inout.container(its.deltaGroups, 65536);
+		   inout.container(its.wish, 131072);			inout.container(its.hint, 32768);
+		   inout.container(its.echo, 32768);			inout.ext(its.whole, CV);
 	)
 
 	struct Arf4Config {
@@ -113,8 +112,9 @@ int Ar::LoadArf(lua_State* L) {
 	}
 
 	// Initialize
-	decodeState.object( Arf={} );							// Lazy clear only when the buffer
-	Arf.maxDt = ( InputDelta>63 ? 63 : InputDelta ) + 37;				//   is loaded successfully.
+	Arf = {};
+	decodeState.object(Arf);								// Lazy clear only when the buffer
+	Arf.maxDt = ( InputDelta>63 ? 63 : InputDelta ) + 37;	//   is loaded successfully.
 	Arf.minDt = Arf.maxDt - 74;
 
 	for( auto& deltaGroup : Arf.deltaGroups ) {

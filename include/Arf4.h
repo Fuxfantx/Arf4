@@ -39,7 +39,7 @@ namespace Arf4 {
 				int32_t				deltaMs:8;			// Set deltaMs = PENDING to init it
 			)
 		};
-		struct {										// Only for Manual Hints.
+		struct {
 			uint64_t				pWish:63, isSpecial:1;
 			float					relT;
 		};

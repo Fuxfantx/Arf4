@@ -75,6 +75,27 @@ static float beatToMs(const float beat) noexcept {
 	return 0;
 }
 
+static double beatToDt(double t, const uint16_t whichDeltaGroup) {
+	if( t = beatToMs(t), t < 0 )
+		return 0;
+	auto& deltaGroup = Arf.deltaGroups[whichDeltaGroup];
+	while( deltaGroup.it != deltaGroup.nodes.cbegin()  &&  t < deltaGroup.it->init )
+		--deltaGroup.it;
+
+	const auto lastIt = deltaGroup.nodes.cend() - 1;
+	while( deltaGroup.it != lastIt ) {
+		if( t < (deltaGroup.it+1)->init ) {
+			deltaGroup.dt = deltaGroup.it->base + (t - deltaGroup.it->init) * deltaGroup.it->value;
+			return deltaGroup.dt;
+		}
+		++deltaGroup.it;
+	}
+
+	if( deltaGroup.it == lastIt )
+		deltaGroup.dt = lastIt->base + (t - lastIt->init) * lastIt->value;
+	return deltaGroup.dt;
+}
+
 static float getX(Arf4::Wish* const o, const float t) noexcept {
 	if( t <= o->nodes[0].t )
 		return o->nodes[0].x;
@@ -138,9 +159,9 @@ static float checkBeat(lua_State* L, const int idx, const int n) {
 				toneToBar( Arf.sinceTone + (x<1 ? x*16 : x) )
 			);
 		}
-		default:
-			return lua_pop(L,1), 0;
+		default:;
 	}
+	return lua_pop(L,1), 0;
 }
 
 static float checkX(lua_State* L, const int idx, const int n, const float t) {
@@ -155,6 +176,12 @@ static float checkX(lua_State* L, const int idx, const int n, const float t) {
 				  x = x < -16200 ? -16200 : x > 16200 ? 16200 : x;
 			return lua_pop(L,1), x;
 		}
+		case LUA_TTABLE: {   // Wish(Time) -> {x, y}
+			lua_rawgeti(L, -1, 1);
+			float x = lua_tonumber(L, -1) * 112.5 - 900.0;
+				  x = x < -16200 ? -16200 : x > 16200 ? 16200 : x;
+			return lua_pop(L,2), x;
+		}
 		case LUA_TUSERDATA: {
 			// Is it a Wish or a Helper?
 			lua_getmetatable(L, -1);
@@ -166,9 +193,9 @@ static float checkX(lua_State* L, const int idx, const int n, const float t) {
 			const auto pWish = (Arf4::Wish*)lua_touserdata(L, -3);
 			return lua_pop(L,3), getX(pWish,t);
 		}
-		default:
-			return lua_pop(L,1), 0;
+		default:;
 	}
+	return lua_pop(L,1), 0;
 }
 
 static float checkY(lua_State* L, const int idx, const int n, const float t) {
@@ -183,6 +210,12 @@ static float checkY(lua_State* L, const int idx, const int n, const float t) {
 				  y = y < -8100 ? -8100 : y > 8100 ? 8100 : y;
 			return lua_pop(L,1), y;
 		}
+		case LUA_TTABLE: {   // Wish(Time) -> {x, y}
+			lua_rawgeti(L, -1, 2);
+			float y = lua_tonumber(L, -1) * 112.5 - 450.0;
+				  y = y < -8100 ? -8100 : y > 8100 ? 8100 : y;
+			return lua_pop(L,1), y;
+		}
 		case LUA_TUSERDATA: {
 			// Is it a Wish or a Helper?
 			lua_getmetatable(L, -1);
@@ -194,9 +227,9 @@ static float checkY(lua_State* L, const int idx, const int n, const float t) {
 			const auto pWish = (Arf4::Wish*)lua_touserdata(L, -3);
 			return lua_pop(L,3), getY(pWish,t);
 		}
-		default:
-			return lua_pop(L,1), 0;
+		default:;
 	}
+	return lua_pop(L,1), 0;
 }
 
 static Arf4::Duo checkEase(lua_State* L, const int idx, const int n, uint8_t* easeType) {
@@ -229,6 +262,42 @@ static Arf4::Duo checkEase(lua_State* L, const int idx, const int n, uint8_t* ea
 	}
 	lua_pop(L, 1);
 	return { .aa = 0, .bb = 0 };
+}
+
+static int scriptGetXY(lua_State* L) {
+	/* Usage:
+	 * local x1, y1 = table.unpack( myWish(0) )
+	 * local x2, y2 = table.unpack( myWish{1,1/16} )
+	 */
+	const auto w = (Arf4::Wish*)lua_touserdata(L, -1);
+	Arf4::Duo xy = { .a = 0, .b = 0 };
+
+	// Check Beat
+	lua_rawseti(L, LUA_REGISTRYINDEX, 0xADD8E6);
+	const float t = checkBeat(L, LUA_REGISTRYINDEX, 0xADD8E6);
+	lua_pushnil(L), lua_rawseti(L, LUA_REGISTRYINDEX, 0xADD8E6);
+
+	// Query XY & Return
+	if( t <= w->nodes[0].t )
+		xy.a = w->nodes[0].x, xy.b = w->nodes[0].y;
+	else if( const auto lastNodeIt = w->nodes.cend() - 1; t >= lastNodeIt->t )
+		xy.a = lastNodeIt->x, xy.b = lastNodeIt->y;
+	else {
+		while( w->pIt != w->nodes.cbegin()  &&  t < w->pIt->t )
+			-- w->pIt;
+		while( w->pIt != lastNodeIt ) {
+			const auto nextNodeIt = w->pIt + 1;
+			if( t < nextNodeIt->t ) {
+				xy = Ar::InterpolatePoint( *( w->pIt ), *nextNodeIt, t );
+				break;
+			}
+			++ w-> pIt;
+		}
+	}
+	lua_createtable(L, 2, 0);   // [2]
+	lua_pushnumber(L, xy.a), lua_rawseti(L, 2, 1);
+	lua_pushnumber(L, xy.b), lua_rawseti(L, 2, 2);
+	return 1;
 }
 
 static int helperGcMethod(lua_State* L) {
@@ -373,6 +442,9 @@ int Ar::NewDeltaGroup(lua_State* L) {
 	 *     ···
 	 * }
 	 */
+	if( Arf.deltaGroups.size() > 65535 )
+		return lua_pushinteger(L, 0), 1;
+
 	std::map<float, float> deltaMap;
 	const size_t inputLen = lua_objlen(L, 1);
 	for( size_t i = 1; i < inputLen; i+=2 ) {
@@ -464,8 +536,8 @@ int Ar::NewWish(lua_State* L) {
 	// Do Return
 	lua_pushlightuserdata(L, &newWish);		// [2]
 	lua_newtable(L);						// [3]
-	lua_pushboolean(L, true);
-	lua_rawseti(L, 3, 0xADD8E6);
+	lua_pushboolean(L, true);				lua_rawseti(L, 3, 0xADD8E6);
+	lua_pushcfunction(L, scriptGetXY);		lua_setfield(L, 3, "__call");
 	lua_setmetatable(L, 2);
 	return 1;
 }
@@ -515,10 +587,9 @@ int Ar::NewHelper(lua_State* L) {
 
 	// Do Return
 	lua_newtable(L);																// [3]
-	lua_pushboolean(L, false);
-	lua_rawseti(L, 3, 0xADD8E6);
-	lua_pushcfunction(L, helperGcMethod);
-	lua_setfield(L, 3, "__gc");
+	lua_pushboolean(L, false);			lua_rawseti(L, 3, 0xADD8E6);
+	lua_pushcfunction(L, scriptGetXY);		lua_setfield(L, 3, "__call");
+	lua_pushcfunction(L, helperGcMethod);	lua_setfield(L, 3, "__gc");
 	lua_setmetatable(L, 2);
 	return 1;
 }
@@ -845,8 +916,205 @@ int Ar::Move(lua_State* L) {
 
 
 /* Fumen Operation Fn */
-int Ar::OrganizeArf(lua_State*) noexcept {
-	// NYI
-	return 0;
+int Ar::OrganizeArf(lua_State* L) noexcept {
+	/* Usage:
+	 * local before_or_false, objcnt, wgo_required, hgo_required, ego_required = Arf4.OrganizeArf()
+	 */
+	if( Arf.deltaGroups.empty() ) {
+		auto& defaultGroup = ( Arf.deltaGroups.push_back({}), Arf.deltaGroups.back() );
+			  defaultGroup.nodes.push_back({ .base = 0, .init = 0, .value = 170.0f / 15000 });
+			  defaultGroup.it = defaultGroup.nodes.cbegin();
+	}
+
+	/* Echo
+	 * -- Convert fromT and toT into ms.
+	 * -- Sort them by toT, then fromT -> ···, Discard all toT < 100 ones.
+	 * -- Max 32767 Echoes.
+	 */
+	for( auto& echo : Arf.echo ) {
+		echo.toT = beatToMs( echo.toT );
+		if( echo.fromT == -0xADD8E6 )
+			echo.fromT = echo.toT - 510.0f;
+		else
+			echo.fromT = beatToMs( echo.fromT );
+	}
+
+	constexpr auto REVERSED_PRED_ECHO = [](const Echo& l, const Echo& r) {
+		if( l.toT != r.toT )		return l.toT > r.toT;
+		if( l.fromT != r.fromT )	return l.fromT > r.fromT;
+		if( l.toX != r.toX )		return l.toX > r.toX;
+		if( l.toY != r.toY )		return l.toY > r.toY;
+		if( l.fromX != r.fromX )	return l.fromX > r.fromX;
+		if( l.fromY != r.fromY )	return l.fromY > r.fromY;
+		if( l.ease != r.ease )		return l.ease > r.ease;
+		if( l.ci != r.ci )			return l.ci > r.ci;
+		if( l.ce != r.ce )			return l.ce > r.ce;
+		return l.status <= r.status;
+	};
+	std::sort( Arf.echo.cbegin(), Arf.echo.cend(), REVERSED_PRED_ECHO );
+	while( !Arf.echo.empty()  &&  Arf.echo.back().toT < 100 )
+		Arf.echo.pop_back();
+
+	if( Arf.echo.size() > 32767 )
+		Arf.echo.resize(32767);
+	std::reverse( Arf.echo.cbegin(), Arf.echo.cend() );
+
+
+	/* Hint
+	 * -- Re-construct them, use a map to sort & unrepeat them.
+	 * -- Max 32767 Hints.
+	 */
+	std::map< float, std::map<int64_t, Hint> > validHints;
+	for( const auto hintProto : Arf.hint ) {
+		const auto pWish = (Wish*)hintProto.pWish;
+		float time = pWish->nodes[0].t + hintProto.relT;
+		const Duo pos = {
+			.a = getX(pWish, time), .b = getY(pWish, time)
+		};
+		if( time = beatToMs(time), time >= 510 && time < 1048576 ) {
+			auto& inner = validHints.contains(time) ? validHints[time] : validHints[time]={};
+			inner[ pos.whole ] = {
+				.x = pos.a, .y = pos.b, .ms = (uint32_t)time, .deltaMs = 0,
+				.status = hintProto.isSpecial ? (uint8_t)SPECIAL_AUTO : (uint8_t)AUTO
+			};
+		}
+	}
+	Arf.hint.clear();
+
+	for( const auto& outer : validHints )
+		for( const auto [_, hint] : outer.second )
+			Arf.hint.push_back(hint);
+	if( Arf.hint.size() > 32767 )
+		Arf.hint.resize(32767);
+
+
+	/* Wish
+	 * -- Nodes: Sorted by beat, Unrepeated, All args within range except t.
+	 *			 Convert all Time into ms; remove all t<0 nodes but the latest one.
+	 * -- Childs: Sorted by beat, Unrepeated, All args within range except dt.
+	 *			  Calculate all dts, use a map to sort & unrepeat all dt>=0 objs.
+	 * -- Max 65535 Nodes & 65535 Childs; Fix Iterators.
+	 * -- Remove Wishes with less than 2 Nodes.
+	 * -- Max 131071 Wishes. Sort them.
+	 */
+	for( auto& wish : Arf.wish ) {
+		int16_t cnt = -1;
+		for( auto& node : wish.nodes )
+			node.t =  beatToMs( node.t ),
+			cnt += node.t < 0 ? 1 : 0;
+		if( cnt > 0 )
+			std::rotate( wish.nodes.begin(), wish.nodes.begin() + cnt, wish.nodes.end() ),
+			wish.nodes.resize((
+				cnt = wish.nodes.size() - cnt,
+				cnt > 0 ? cnt : 0
+			));
+		if( wish.nodes.size() == 0 )			continue;
+		if( wish.nodes.size() > 65535 )			wish.nodes.resize(65535);
+
+		struct ChildArgs {
+			Ar32(
+				int16_t		fromDegree, toDegree;
+				float		initRadius;
+			)
+		};
+		std::map< double, std::map<uint64_t, WishChild> > childMap;
+		for( const auto child : wish.wishChilds ) {
+			const double dt = beatToDt( child.dt, wish.deltaGroup );
+				  auto&  inner = childMap.contains(dt) ? childMap[dt] : childMap[dt]={};
+			const ChildArgs a = { child.fromDegree, child.toDegree, child.initRadius };
+			inner[ a.whole ] = { dt, a.fromDegree, a.toDegree, a.initRadius };
+		}
+		wish.wishChilds.clear();
+
+		for( const auto& outer : childMap )
+			for( const auto [_, child] : outer.second )
+				wish.wishChilds.push_back(child);
+		if( wish.wishChilds.size() > 65535 )
+			wish.wishChilds.resize(65535);
+	}
+	std::sort( Arf.wish.cbegin(), Arf.wish.cend(), [](const Wish& l, const Wish& r) {
+		return l.nodes.size() >= r.nodes.size();
+	});
+	while( Arf.wish.back().nodes.empty() )
+		Arf.wish.pop_back();
+
+	constexpr auto PRED_WISH = [](const Wish& l, const Wish& r) {
+		const auto lFirstNode = l.nodes[0], lLastNode = l.nodes.back(),
+				   rFirstNode = r.nodes[0], rLastNode = r.nodes.back();
+		if( lFirstNode.t != rFirstNode.t )		return lFirstNode.t < rFirstNode.t;
+		if( lLastNode.t != rLastNode.t )		return lLastNode.t < rLastNode.t;
+		return (lLastNode.t - lFirstNode.t) <= (rLastNode.t - lFirstNode.t);
+	};
+	std::sort( Arf.wish.cbegin(), Arf.wish.cend(), PRED_WISH );
+	if( Arf.wish.size() > 131071 )
+		Arf.wish.resize(131071);
+
+	/* Index */
+	for( auto& g : Arf.deltaGroups )   // Fix Iterators
+		g.it = g.nodes.cbegin();
+	for( auto& w : Arf.wish )
+		w.cIt = w.wishChilds.cbegin(),
+		w.pIt = w.nodes.cbegin();
+	Arf.idxGroups.reserve(2047);
+
+	const size_t wSize = Arf.wish.size();
+	for( size_t wi = 0; wi < wSize; ++wi ) {
+		const auto& w = Arf.wish[wi];
+		const float fms = w.nodes[0].t, lms = w.nodes.back().t;
+
+		const uint16_t lidx = (uint32_t)lms >> 9;
+		if( lidx > 2047 )
+			return lua_pushboolean(L, false), 1;
+		if( lidx > Arf.idxGroups.size() )
+			Arf.idxGroups.resize( lidx+1 );
+		if( lms > Arf.before )
+			Arf.before = lms;
+
+		for( uint16_t i = fms < 0 ? 0 : (uint32_t)fms >> 9; i<=lidx; ++i )
+			Arf.idxGroups[i].wIdx.push_back(wi);
+	}
+
+	const size_t hSize = Arf.hint.size();
+	for( size_t hi = 0; hi < hSize; ++hi ) {
+		const auto& h = Arf.hint[hi];
+		const int32_t fms = (int32_t)h.ms - 510, lms = h.ms + 470;
+
+		const uint16_t lidx = lms >> 9;
+		if( lidx > 2047 )
+			return lua_pushboolean(L, false), 1;
+		if( lidx > Arf.idxGroups.size() )
+			Arf.idxGroups.resize( lidx+1 );
+		if( lms > Arf.before )
+			Arf.before = lms;
+
+		for( uint16_t i = fms < 0 ? 0 : (uint32_t)fms >> 9; i<=lidx; ++i )
+			Arf.idxGroups[i].hIdx.push_back(hi);
+	}
+
+	const size_t eSize = Arf.echo.size();
+	for( size_t ei = 0; ei < eSize; ++ei ) {
+		const auto& e = Arf.echo[ei];
+		const float lms = e.toT + 470;
+
+		const uint16_t lidx = (uint32_t)lms >> 9;
+		if( lidx > 2047 )
+			return lua_pushboolean(L, false), 1;
+		if( lidx > Arf.idxGroups.size() )
+			Arf.idxGroups.resize( lidx+1 );
+		if( lms > Arf.before )
+			Arf.before = lms;
+
+		float fms = e.toT - 510;
+			  fms = fms > e.fromT ? e.fromT : fms;
+		for( uint16_t i = fms < 0 ? 0 : (uint32_t)fms >> 9; i<=lidx; ++i )
+			Arf.idxGroups[i].eIdx.push_back(ei);
+	}
+
+	/* Metadata(WIP)
+	 * -- objectCount, wgoRequired, hgoRequired, egoRequired
+	 */
+	return lua_pushnumber(L, Arf.before),		lua_pushnumber(L, Arf.objectCount),
+		   lua_pushnumber(L, Arf.wgoRequired),	lua_pushnumber(L, Arf.hgoRequired),
+		   lua_pushnumber(L, Arf.egoRequired),	5;
 }
 #endif
