@@ -21,7 +21,6 @@ static const luaL_reg Arf4Lib[] = {
 	{"NewWish", Ar::NewWish},
 	{"NewHint", Ar::NewHint},
 	{"NewEcho", Ar::NewEcho},
-	{"Require", Ar::Require},
 	{"MirrorLR", Ar::MirrorLR},
 	{"MirrorUD", Ar::MirrorUD},
 	{"Move", Ar::Move},
@@ -46,7 +45,8 @@ static const luaL_reg Arf4Lib[] = {
 static dmExtension::Result Arf4Init(dmExtension::Params* p) {
 	#ifdef DM_PLATFFORM_ANDROID
 		JNIEnv* pEnv;
-		pVm = dmGraphics::GetNativeAndroidJavaVM(), pVm->AttachCurrentThread(&pEnv, NULL);
+		pVm = dmGraphics::GetNativeAndroidJavaVM();
+		pVm-> AttachCurrentThread(&pEnv, NULL);
 		hapticClass = (jclass)pEnv->NewGlobalRef(
 			pEnv->CallObjectMethod(
 				/* Object */ pEnv->CallObjectMethod(

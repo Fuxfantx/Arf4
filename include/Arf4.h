@@ -21,7 +21,7 @@ namespace Arf4 {
 		float						x, y, t;
 		Ar32(
 			uint32_t				ce:10 = 0x3FF, ease:4 = LINEAR;
-			uint32_t				ci:10;			   // 8bit Padding here
+			uint32_t				ci:10;				// 8bit Padding here
 		)
 	};
 	struct Echo {
@@ -35,21 +35,21 @@ namespace Arf4 {
 		struct {
 			float					x, y;
 			Ar32(
-				uint32_t			status:4, ms:20;   // Max 1048575ms -> 17.47625 mins
-				int32_t				deltaMs:8;		   // Set deltaMs = PENDING to init it
+				uint32_t			status:4, ms:20;	// Max 1048575ms -> 17.47625 mins
+				int32_t				deltaMs:8;			// Set deltaMs = PENDING to init it
 			)
 		};
-		struct {
-			Wish*					from;
-			float					t;
+		struct {										// Only for Manual Hints.
+			uint64_t				pWish:63, isSpecial:1;
+			float					relT;
 		};
 	};
 
 	// DeltaTime & WishChild
 	struct DeltaNode {
-		double						baseDt;
-		uint32_t					initMs;
-		float						ratio;			   // BPM * Scale / 15000 -> {-16, 16, 1/131072}
+		double						base;
+		float						init;
+		float						value;				// for SC: BPM * Scale / 15000 -> {-16, 16, 1/131072}
 	};
 	struct DeltaGroup {
 		std::vector<DeltaNode>		nodes;
@@ -63,7 +63,7 @@ namespace Arf4 {
 	};
 
 	// Misc
-	union FloatInDetail {							   // Little Endian Only
+	union FloatInDetail {								// Little Endian Only
 		float						f;
 		struct					  { uint32_t m:23, e:11, s:1; };
 	};
@@ -109,20 +109,18 @@ namespace Arf4 {
 		H6416						lastWgo, lastEhgo;
 		std::vector<Duo>			blocked;
 		/*------------------------*/
-		#ifdef AR_BUILD_VIEWER						   // Use new to create Helpers, and use
-			struct Tempo {							   //   delete to free them.
-				float				from, barLen;
-				uint16_t			a, b;
+		#ifdef AR_BUILD_VIEWER							// Use new to create Helpers, and use
+			struct Tempo {								//   delete to free them.
+				float				init, beatBase, toneBase;
+				uint16_t			a, b;				// Time Signature a / b
 			};
-			uint32_t				verseWidx;
-			uint16_t				verseHidx, verseEidx;
-			std::vector<Tempo>		tempoList;
-			VCIT(Tempo)				tempoIt;
+			float					sinceTone;
+			uint32_t				verseWidx:17, verseEidx:15;
+			std::vector<Tempo>		tempoList;			std::vector<DeltaNode>		beatToMs;
+			VCIT(Tempo)				tempoIt;			VCIT(DeltaNode)				beatIt;
 		#endif
 	};
 }
-extern  Arf4::Fumen  Arf;
-extern  int8_t		 InputDelta;
 
 namespace Ar {
 	using namespace Arf4;
@@ -138,13 +136,12 @@ namespace Ar {
 	 int  NewWish(lua_State* L);
 	 int  NewHint(lua_State* L);
 	 int  NewEcho(lua_State* L);
-	 int  Require(lua_State* L);
 	 int  Move(lua_State* L);
 
 	/* Internal */
 	void  JudgeArfSweep() noexcept;
-	 Duo  InterpolateEcho(const Echo& echo) noexcept;
-	 Duo  InterpolatePoint(Point thisPn, Point nextPn) noexcept;
+	 Duo  InterpolateEcho(const Echo& echo, float t) noexcept;
+	 Duo  InterpolatePoint(Point thisPn, Point nextPn, float t) noexcept;
 	 Duo  GetSinCosByDegree(FloatInDetail d) noexcept;
 
 	/* Operation */
@@ -171,3 +168,6 @@ namespace Ar {
 	 int  PartialEase(lua_State* L);
 	 int  Ease(lua_State* L);
 }
+
+extern  Arf4::Fumen  Arf;
+extern  int8_t		 InputDelta;

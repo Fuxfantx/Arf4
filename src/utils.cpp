@@ -63,14 +63,14 @@ Duo Ar::GetSinCosByDegree(FloatInDetail d) noexcept {
 	}
 }
 
-Duo Ar::InterpolatePoint(const Point thisPn, const Point nextPn) noexcept {
+Duo Ar::InterpolatePoint(const Point thisPn, const Point nextPn, const float t) noexcept {
 	if( thisPn.ease == 0 )   return { .a = thisPn.x, .b = thisPn.y };
 	const float deltaX = nextPn.x - thisPn.x,
 				deltaY = nextPn.y - thisPn.y;
 
 	if( thisPn.ease < 6 ) {   // Simple Path
 		const float ratio = calculateEasedRatio( { .f =
-							(Arf.msTime - thisPn.t) / (nextPn.t - thisPn.t) }, thisPn.ease );
+							(t - thisPn.t) / (nextPn.t - thisPn.t) }, thisPn.ease );
 		return {
 			.a = thisPn.x + deltaX * ratio,
 			.b = thisPn.y + deltaY * ratio
@@ -78,7 +78,7 @@ Duo Ar::InterpolatePoint(const Point thisPn, const Point nextPn) noexcept {
 	}
 	if( thisPn.ease < 11 ) {   // Clockwise when dx * dy > 0   -->   x: INSINE  y: OUTSINE
 		FloatInDetail r = { .f = calculateEasedRatio( { .f =
-					  (Arf.msTime - thisPn.t) / (nextPn.t - thisPn.t) }, thisPn.ease - 5 ) };
+					  (t - thisPn.t) / (nextPn.t - thisPn.t) }, thisPn.ease - 5 ) };
 		if( !thisPn.ci  &&  thisPn.ce == 0x3FF ) {
 			const uint16_t Rx1024 = ( r.e+=10, r.f );
 			return { .a = thisPn.x + deltaX * inSine [Rx1024] ,
@@ -95,7 +95,7 @@ Duo Ar::InterpolatePoint(const Point thisPn, const Point nextPn) noexcept {
 	}
 	/* Default */ {   // Clockwise when dx * dy < 0   -->   x: OUTSINE  y: INSINE
 		FloatInDetail r = { .f = calculateEasedRatio( { .f =
-					  (Arf.msTime - thisPn.t) / (nextPn.t - thisPn.t) }, thisPn.ease - 10 ) };
+					  (t - thisPn.t) / (nextPn.t - thisPn.t) }, thisPn.ease - 10 ) };
 		if( !thisPn.ci  &&  thisPn.ce == 0x3FF ) {
 			const uint16_t Rx1024 = ( r.e+=10, r.f );
 			return { .a = thisPn.x + deltaX * outSine[Rx1024] ,
@@ -112,15 +112,15 @@ Duo Ar::InterpolatePoint(const Point thisPn, const Point nextPn) noexcept {
 	}
 }
 
-Duo Ar::InterpolateEcho(const Echo& echo) noexcept {
-	if( echo.toT  <= Arf.msTime )	return { .a = echo.toX, .b = echo.toY };
+Duo Ar::InterpolateEcho(const Echo& echo, const float t) noexcept {
+	if( echo.toT  <= t )	return { .a = echo.toX, .b = echo.toY };
 	if( echo.ease == 0 )			return { .a = echo.fromX, .b = echo.fromY };
 	const float deltaX = echo.toX - echo.fromX,
 				deltaY = echo.toY - echo.fromY;
 
 	if( echo.ease < 6 ) {   // Simple Path
 		const float ratio = calculateEasedRatio( { .f =
-							(Arf.msTime - echo.fromT) / (echo.toT - echo.fromT) }, echo.ease );
+							(t - echo.fromT) / (echo.toT - echo.fromT) }, echo.ease );
 		return {
 			.a = echo.fromX + deltaX * ratio,
 			.b = echo.fromY + deltaY * ratio
@@ -128,7 +128,7 @@ Duo Ar::InterpolateEcho(const Echo& echo) noexcept {
 	}
 	if( echo.ease < 11 ) {   // Clockwise when dx * dy > 0   -->   x: INSINE  y: OUTSINE
 		FloatInDetail r = { .f = calculateEasedRatio( { .f =
-					  (Arf.msTime - echo.fromT) / (echo.toT - echo.fromT) }, echo.ease - 5 ) };
+					  (t - echo.fromT) / (echo.toT - echo.fromT) }, echo.ease - 5 ) };
 		if( !echo.ci  &&  echo.ce == 0xFF ) {
 			const uint16_t Rx1024 = ( r.e+=10, r.f );
 			return { .a = echo.fromX + deltaX * inSine [Rx1024] ,
@@ -146,7 +146,7 @@ Duo Ar::InterpolateEcho(const Echo& echo) noexcept {
 	}
 	/* Default */ {   // Clockwise when dx * dy < 0   -->   x: OUTSINE  y: INSINE
 		FloatInDetail r = { .f = calculateEasedRatio( { .f =
-					  (Arf.msTime - echo.fromT) / (echo.toT - echo.fromT) }, echo.ease - 10 ) };
+					  (t - echo.fromT) / (echo.toT - echo.fromT) }, echo.ease - 10 ) };
 		if( !echo.ci  &&  echo.ce == 0xFF ) {
 			const uint16_t Rx1024 = ( r.e+=10, r.f );
 			return { .a = echo.fromX + deltaX * outSine[Rx1024] ,

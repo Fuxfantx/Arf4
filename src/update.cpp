@@ -149,18 +149,18 @@ int Ar::UpdateArf(lua_State* L) {
 
 	/* DeltaGroups */
 	for( auto& deltaGroup : Arf.deltaGroups ) {
-		while( deltaGroup.it != deltaGroup.nodes.cbegin()  &&  Arf.msTime < deltaGroup.it->initMs )
+		while( deltaGroup.it != deltaGroup.nodes.cbegin()  &&  Arf.msTime < deltaGroup.it->init )
 			--deltaGroup.it;
-		const VCIT(DeltaNode) lastIt = deltaGroup.nodes.cend() - 1;
+		const auto lastIt = deltaGroup.nodes.cend() - 1;
 		while( deltaGroup.it != lastIt ) {
-			if( Arf.msTime < (deltaGroup.it+1)->initMs ) {
-				deltaGroup.dt = deltaGroup.it->baseDt + (Arf.msTime - deltaGroup.it->initMs) * deltaGroup.it->ratio;
+			if( Arf.msTime < (deltaGroup.it+1)->init ) {
+				deltaGroup.dt = deltaGroup.it->base + (Arf.msTime - deltaGroup.it->init) * deltaGroup.it->value;
 				goto NEXT_GROUP;
 			}
 			++deltaGroup.it;
 		}
 		if( deltaGroup.it == lastIt )
-			deltaGroup.dt = lastIt->baseDt + (Arf.msTime - lastIt->initMs) * lastIt->ratio;
+			deltaGroup.dt = lastIt->base + (Arf.msTime - lastIt->init) * lastIt->value;
 		NEXT_GROUP:;
 	}
 
@@ -171,7 +171,7 @@ int Ar::UpdateArf(lua_State* L) {
 		if( Arf.msTime < currentWish.nodes[0].t )
 			break;
 
-		const VCIT(Point) lastNodeIt = currentWish.nodes.cend() - 1;
+		const auto lastNodeIt = currentWish.nodes.cend() - 1;
 		if( Arf.msTime >= lastNodeIt->t )
 			continue;
 
@@ -179,11 +179,11 @@ int Ar::UpdateArf(lua_State* L) {
 		while( currentWish.pIt != currentWish.nodes.cbegin()  &&  Arf.msTime < currentWish.pIt->t )
 			--currentWish.pIt;
 		while( currentWish.pIt != lastNodeIt ) {
-			const VCIT(Point) nextNodeIt = currentWish.pIt+1;
+			const auto nextNodeIt = currentWish.pIt+1;
 			if( Arf.msTime < nextNodeIt->t ) {
 				const float existMs = Arf.msTime - currentWish.nodes[0].t;
 				wgoUsed += renderWish( L,
-					nodePos = InterpolatePoint( *currentWish.pIt, *nextNodeIt ),
+					nodePos = InterpolatePoint( *currentWish.pIt, *nextNodeIt, Arf.msTime ),
 					{ .a = 0.01f, .b = existMs >= 151 ? 1.0f : existMs / 151.0f } , wgoUsed );
 				break;
 			}
@@ -192,7 +192,7 @@ int Ar::UpdateArf(lua_State* L) {
 
 		/* WishChild */
 		const double currentDt = Arf.deltaGroups[ currentWish.deltaGroup ].dt;
-		const VCIT(WishChild) lastChildIt = currentWish.wishChilds.cend() - 1;
+		const auto lastChildIt = currentWish.wishChilds.cend() - 1;
 		if( currentWish.wishChilds.empty()  ||  currentDt >= lastChildIt->dt
 											||  currentDt <  currentWish.wishChilds[0].dt - 16 )
 			continue;
@@ -203,7 +203,7 @@ int Ar::UpdateArf(lua_State* L) {
 		else while( currentWish.cIt != lastChildIt  &&  currentWish.cIt->dt <= currentDt )
 			++currentWish.cIt;
 
-		for( VCIT(WishChild) thisCit = currentWish.cIt; thisCit != lastChildIt; ++thisCit ) {
+		for( auto thisCit = currentWish.cIt; thisCit != lastChildIt; ++thisCit ) {
 			const float distance = thisCit->dt - currentDt;
 			if( distance > 16.0 )					 break;
 			if( distance > thisCit->initRadius )  continue;
@@ -311,7 +311,7 @@ int Ar::UpdateArf(lua_State* L) {
 		const int32_t frameOffset  = (int32_t)Arf.msTime - (int32_t)currentEcho.toT;
 		if( frameOffset > 470 )						continue;
 
-		const Duo echoPos = InterpolateEcho(currentEcho);
+		const Duo echoPos = InterpolateEcho(currentEcho, Arf.msTime);
 		const Duo egoPos = {
 			.a = 900.0f + (echoPos.a * Arf.rotCos - echoPos.b * Arf.rotSin) * Arf.xScale + Arf.xDelta,
 			.b = 540.0f + (echoPos.a * Arf.rotSin + echoPos.b * Arf.rotCos) * Arf.yScale + Arf.yDelta
