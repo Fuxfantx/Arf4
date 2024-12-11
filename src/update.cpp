@@ -127,7 +127,6 @@ static bool renderAnim(lua_State* L, const Duo finalPos, const int16_t msPassed,
 	const float rightRatio = msPassed / 370.0f;
 	dmGameObject::SetRotation( rAgo, rotationToQuat(45.0f - 8.0f * rightRatio) );
 	dmGameObject::SetScale( rAgo, 1.0f + 0.637f * rightRatio * (2.0f - rightRatio) );
-
 	return true;
 }
 
@@ -139,13 +138,16 @@ int Ar::UpdateArf(lua_State* L) {
 	 *       ms, dt, wgos, hgos, egos, ehgos, algos, argos, wtints, htints, etints, atints)
 	 */
 	Arf.msTime = (uint32_t)luaL_checknumber(L, 1); {
-		if( Arf.msTime < 2 )						Arf.msTime = 2;
-		else if( Arf.msTime >= Arf.before )			return 0;
+		if( Arf.msTime >= Arf.before )			return 0;
+		if( Arf.msTime < 2 )					Arf.msTime = 2;
 	}
 	const uint32_t frameEndMs = Arf.msTime + (uint32_t)(luaL_checknumber(L, 2) * 1000.0);
 		  uint16_t wgoUsed = 0, hgoUsed = 0, egoUsed = 0, ehgoUsed = 0 , agoUsed = 0;
 	struct{uint8_t hint:1 = false, echo:1 = false;} hitSound;
-	JudgeArfSweep();
+
+	#ifndef AR_BUILD_VIEWER
+		JudgeArfSweep();
+	#endif
 
 	/* DeltaGroups */
 	for( auto& deltaGroup : Arf.deltaGroups ) {
@@ -307,7 +309,6 @@ int Ar::UpdateArf(lua_State* L) {
 	for( const auto ei : Arf.idxGroups[ Arf.msTime>>9 ].eIdx ) {
 		const auto& currentEcho = Arf.echo[ei];
 		const int32_t frameOffset  = (float)Arf.msTime - (int32_t)currentEcho.toT;
-
 		if( frameOffset < -510  &&  Arf.msTime < currentEcho.fromT )	 continue;
 		if( frameOffset > +470 )										 continue;
 
@@ -397,7 +398,6 @@ int Ar::UpdateArf(lua_State* L) {
 			default:;
 		}
 	}
-
 	return lua_pushinteger(L, wgoUsed),  lua_pushinteger(L, hgoUsed), lua_pushinteger(L, egoUsed),
 		   lua_pushinteger(L, ehgoUsed), lua_pushinteger(L, agoUsed), lua_pushboolean(L, hitSound.hint),
 																	  lua_pushboolean(L, hitSound.echo), 7;

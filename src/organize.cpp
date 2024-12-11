@@ -620,16 +620,16 @@ int Ar::NewChild(lua_State* L) {
 	switch( lua_getfield(L, 1, "Angle"), lua_type(L, -1) ) {
 		case LUA_TNUMBER:
 			fromDeg = lua_tointeger(L, -1);
-			fromDeg = fromDeg > 65355 ? 65355 : fromDeg < -65355 ? -65355 : fromDeg;
+			fromDeg = fromDeg > 32587 ? 32587 : fromDeg < -32587 ? -32587 : fromDeg;
 			toDeg = fromDeg;
 			break;
 		case LUA_TTABLE: {
 			lua_rawgeti(L, 2, 1);
 			lua_rawgeti(L, 2, 2);   // [2] Angle  [3] fromDeg  [4] toDeg
 			fromDeg = lua_isnumber(L, 3) ? lua_tointeger(L, 3) : 90;
-			fromDeg = fromDeg > 65355 ? 65355 : fromDeg < -65355 ? -65355 : fromDeg;
+			fromDeg = fromDeg > 32587 ? 32587 : fromDeg < -32587 ? -32587 : fromDeg;
 			toDeg = lua_isnumber(L, 4) ? lua_tointeger(L, 4) : 90;
-			toDeg = toDeg > 65355 ? 65355 : toDeg < -65355 ? -65355 : toDeg;
+			toDeg = toDeg > 32587 ? 32587 : toDeg < -32587 ? -32587 : toDeg;
 			lua_pop(L, 2);
 		}
 		default:;
@@ -950,10 +950,10 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 		if( l.ce != r.ce )			return l.ce > r.ce;
 		return l.status <= r.status;
 	};
-	std::sort( Arf.echo.cbegin(), Arf.echo.cend(), REVERSED_PRED_ECHO );
+	std::sort( Arf.echo.begin(), Arf.echo.end(), REVERSED_PRED_ECHO );
 	while( !Arf.echo.empty()  &&  Arf.echo.back().toT < 100 )
 		Arf.echo.pop_back();
-	std::reverse( Arf.echo.cbegin(), Arf.echo.cend() );
+	std::reverse( Arf.echo.begin(), Arf.echo.end() );
 
 
 	/* Hint
@@ -1026,7 +1026,7 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 		if( wish.wishChilds.size() > 65535 )
 			wish.wishChilds.resize(65535);
 	}
-	std::sort( Arf.wish.cbegin(), Arf.wish.cend(), [](const Wish& l, const Wish& r) {
+	std::sort( Arf.wish.begin(), Arf.wish.end(), [](const Wish& l, const Wish& r) {
 		return l.nodes.size() >= r.nodes.size();
 	});
 	while( Arf.wish.back().nodes.empty() )
@@ -1039,7 +1039,7 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 		if( lLastNode.t != rLastNode.t )		return lLastNode.t < rLastNode.t;
 		return (lLastNode.t - lFirstNode.t) <= (rLastNode.t - lFirstNode.t);
 	};
-	std::sort( Arf.wish.cbegin(), Arf.wish.cend(), PRED_WISH );
+	std::sort( Arf.wish.begin(), Arf.wish.end(), PRED_WISH );
 	if( Arf.wish.size() > 131071 )
 		Arf.wish.resize(131071);
 
