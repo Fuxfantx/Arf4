@@ -977,7 +977,7 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 	std::sort( Arf.wish.begin(), Arf.wish.end(), [](const Wish& l, const Wish& r) {
 		return l.nodes.size() >= r.nodes.size();
 	});
-	while( Arf.wish.back().nodes.empty() )
+	while( !Arf.wish.empty()  &&  Arf.wish.back().nodes.empty() )
 		Arf.wish.pop_back();
 
 	constexpr auto PRED_WISH = [](const Wish& l, const Wish& r) {
@@ -1009,7 +1009,7 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 		const uint16_t lidx = (uint32_t)lms >> 9;
 		if( lidx > 2047 )
 			return lua_pushboolean(L, false), 1;
-		if( lidx > Arf.idxGroups.size() )
+		if( lidx >= Arf.idxGroups.size() )
 			Arf.idxGroups.resize( lidx+1 );
 		if( lms > Arf.before )
 			Arf.before = lms;
@@ -1024,9 +1024,7 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 		const int32_t fms = (int32_t)h.ms - 510, lms = h.ms + 470;
 
 		const uint16_t lidx = lms >> 9;
-		if( lidx > 2047 )
-			return lua_pushboolean(L, false), 1;
-		if( lidx > Arf.idxGroups.size() )
+		if( lidx >= Arf.idxGroups.size() )
 			Arf.idxGroups.resize( lidx+1 );
 		if( lms > Arf.before )
 			Arf.before = lms;
@@ -1043,7 +1041,7 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 		const uint16_t lidx = (uint32_t)lms >> 9;
 		if( lidx > 2047 )
 			return lua_pushboolean(L, false), 1;
-		if( lidx > Arf.idxGroups.size() )
+		if( lidx >= Arf.idxGroups.size() )
 			Arf.idxGroups.resize( lidx+1 );
 		if( lms > Arf.before )
 			Arf.before = lms;
@@ -1068,19 +1066,13 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 
 		size_t groupWgoRequired = 0;
 		for( const size_t wi : idx.wIdx ) {
-			const auto& w = Arf.wish[wi];
-
-			// Add Steps
-			stepDeltas.clear();
-			for( const auto& c : w.wishChilds ) {
-				const double popInDt = c.dt - c.initRadius;
-				stepDeltas.contains(popInDt) ? (stepDeltas[popInDt]+=1) : (stepDeltas[popInDt]=1);
-				stepDeltas.contains(c.dt) ? (stepDeltas[c.dt]-=1) : (stepDeltas[c.dt]=-1);
-			}
-
-			// Perform Steps
 			int32_t stepRequired = 1, maxStepRequired = 1;
-			for( const auto [_, stepDelta] : stepDeltas )
+			stepDeltas.clear();
+
+			for( const auto& c : Arf.wish[wi].wishChilds )   /* Add Steps */
+				stepDeltas[( c.dt - c.initRadius )] += 1, stepDeltas[c.dt] -= 1;   // map[k] == 0 by default
+
+			for( const auto [_, stepDelta] : stepDeltas )   /* Perform Steps */
 				stepRequired += stepDelta,
 				maxStepRequired = stepRequired > maxStepRequired ? stepRequired : maxStepRequired;
 			groupWgoRequired += (maxStepRequired < 2 ? 1 : maxStepRequired);
