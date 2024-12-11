@@ -17,7 +17,6 @@ constexpr uint8_t WHEN_DXDY_UNDERZERO[] = { 0,
 	Arf4::OUTSINE + Arf4::CPOSITIVE, Arf4::INQUAD + Arf4::CPOSITIVE, Arf4::OUTQUAD + Arf4::CPOSITIVE
 };
 
-
 /* Internal Fns */
 static float barToTone(const float bar) noexcept {
 	while( Arf.tempoIt != Arf.tempoList.cbegin()  &&  bar < (Arf.tempoIt-1)->init )
@@ -432,6 +431,7 @@ int Ar::NewBuild(lua_State* L) {
 	return 0;
 }
 
+static std::map<float, float> deltaMap;
 int Ar::NewDeltaGroup(lua_State* L) {
 	/* Usage:
 	 * local my_1st_group = DeltaGroup {	-- Returns the idx(0 here)
@@ -444,8 +444,8 @@ int Ar::NewDeltaGroup(lua_State* L) {
 	 */
 	if( Arf.deltaGroups.size() > 65535 )
 		return lua_pushinteger(L, 0), 1;
+	deltaMap.clear();
 
-	std::map<float, float> deltaMap;
 	const size_t inputLen = lua_objlen(L, 1);
 	for( size_t i = 1; i < inputLen; i+=2 ) {
 		const float ms = beatToMs( checkBeat(L, 1, i) );
@@ -476,6 +476,7 @@ int Ar::NewDeltaGroup(lua_State* L) {
 	return 1;
 }
 
+static std::map<float, Arf4::Point>	nodeMap;
 int Ar::NewWish(lua_State* L) {
 	/* Usage:
 	 * local myWish = Wish {	-- When failed, a nil will be returned.
@@ -495,7 +496,7 @@ int Ar::NewWish(lua_State* L) {
 	}
 	lua_pop(L, 1);
 
-	std::map<float, Point> nodeMap;
+	nodeMap.clear();
 	const size_t inputLen = lua_objlen(L, 1);
 	for( size_t i = 1; i < inputLen; i+=4 ) {
 		uint8_t easeType = LINEAR;
@@ -550,7 +551,7 @@ int Ar::NewHelper(lua_State* L) {
 	 *     ···
 	 * }
 	 */
-	std::map<float, Point> nodeMap;
+	nodeMap.clear();
 	const size_t inputLen = lua_objlen(L, 1);
 	for( size_t i = 1; i < inputLen; i+=4 ) {
 		uint8_t easeType = LINEAR;
@@ -651,15 +652,12 @@ int Ar::NewChild(lua_State* L) {
 	}
 	const auto minT = pWish->nodes[0].t, maxT = pWish->nodes.back().t;
 
-	std::map<float, uint8_t> beats;
-	size_t beatCnt = lua_objlen(L, 1);
-	for( size_t i = 1; i <= beatCnt; ++i )
-		beats[ checkBeat(L, 1, i) ] = 0;
-	beatCnt = beats.size();
-
-	Arf.hint.reserve(beatCnt);
+	const size_t beatCnt = lua_objlen(L, 1);
 	pWish->wishChilds.reserve(beatCnt);
-	for( const auto [beat, _] : beats ) {
+	Arf.hint.reserve(beatCnt);
+
+	for( size_t i = 1 ; i <= beatCnt; ++i ) {
+		const float beat = checkBeat(L, 1, i);
 		if( beat >= minT  &&  beat <= maxT )
 			Arf.hint.push_back( {
 				.pWish = reinterpret_cast<uint64_t>(pWish),
@@ -671,7 +669,7 @@ int Ar::NewChild(lua_State* L) {
 			.fromDegree = fromDeg, .toDegree = toDeg, .initRadius = radius
 		});
 	}
-	pWish->cIt = pWish->wishChilds.cbegin();
+	// pWish->cIt = pWish->wishChilds.cbegin();   /* Will be done in OrganizeArf */
 	return 0;
 }
 
@@ -703,22 +701,16 @@ int Ar::NewHint(lua_State* L) {
 	}
 	const auto minT = pWish->nodes[0].t, maxT = pWish->nodes.back().t;
 
-	std::map<float, uint8_t> beats;
-	size_t beatCnt = lua_objlen(L, 1);
-	for( size_t i = 1; i <= beatCnt; ++i )
-		beats[ checkBeat(L, 1, i) ] = 0;
-	beatCnt = beats.size();
-
+	const size_t beatCnt = lua_objlen(L, 1);
 	Arf.hint.reserve(beatCnt);
-	pWish->wishChilds.reserve(beatCnt);
-	for( const auto [beat, _] : beats ) {
-		if( beat >= minT  &&  beat <= maxT )
+
+	for( size_t i = 1; i <= beatCnt; ++i )
+		if( const float beat = checkBeat(L, 1, i);  beat >= minT  &&  beat <= maxT )
 			Arf.hint.push_back( {
 				.pWish = reinterpret_cast<uint64_t>(pWish),
 				.isSpecial = isSpecial,
 				.relT = beat - minT,
 			});
-	}
 	return 0;
 }
 
@@ -930,14 +922,6 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 	 * -- Convert fromT and toT into ms.
 	 * -- Sort them by toT, then fromT -> ···, Discard all toT < 100 ones.
 	 */
-	for( auto& echo : Arf.echo ) {
-		echo.toT = beatToMs( echo.toT );
-		if( echo.fromT == -0xADD8E6 )
-			echo.fromT = echo.toT - 510.0f;
-		else
-			echo.fromT = beatToMs( echo.fromT );
-	}
-
 	constexpr auto REVERSED_PRED_ECHO = [](const Echo& l, const Echo& r) {
 		if( l.toT != r.toT )		return l.toT > r.toT;
 		if( l.fromT != r.fromT )	return l.fromT > r.fromT;
@@ -950,6 +934,10 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 		if( l.ce != r.ce )			return l.ce > r.ce;
 		return l.status <= r.status;
 	};
+
+	for( auto& echo : Arf.echo )
+		echo.toT = beatToMs( echo.toT ),
+		echo.fromT = (echo.fromT == -0xADD8E6) ? (echo.toT - 510.0f) : beatToMs( echo.fromT );
 	std::sort( Arf.echo.begin(), Arf.echo.end(), REVERSED_PRED_ECHO );
 	while( !Arf.echo.empty()  &&  Arf.echo.back().toT < 100 )
 		Arf.echo.pop_back();
@@ -975,7 +963,6 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 			};
 		}
 	}
-
 	Arf.hint.clear();
 	for( const auto& outer : validHints )
 		for( const auto [_, hint] : outer.second )
@@ -991,27 +978,27 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 	 * -- Remove Wishes with less than 2 Nodes.
 	 * -- Max 131071 Wishes. Sort them.
 	 */
+	struct ChildArgs {
+		Ar32(
+			int16_t		fromDegree, toDegree;
+			float		initRadius;
+		)
+	};
+	std::map< double, std::map<uint64_t, WishChild> > childMap;
+
 	for( auto& wish : Arf.wish ) {
-		int16_t cnt = -1;
+		int16_t delCnt = -1;
 		for( auto& node : wish.nodes )
 			node.t =  beatToMs( node.t ),
-			cnt += node.t < 0 ? 1 : 0;
-		if( cnt > 0 )
-			std::rotate( wish.nodes.begin(), wish.nodes.begin() + cnt, wish.nodes.end() ),
-			wish.nodes.resize((
-				cnt = wish.nodes.size() - cnt,
-				cnt > 0 ? cnt : 0
-			));
+			delCnt += node.t < 0 ? 1 : 0;
+		if( delCnt > 0 ) {
+			const auto initIt = wish.nodes.begin();
+			wish.nodes.erase( initIt, initIt + delCnt );
+		}
 		if( wish.nodes.size() == 0 )			continue;
 		if( wish.nodes.size() > 65535 )			wish.nodes.resize(65535);
 
-		struct ChildArgs {
-			Ar32(
-				int16_t		fromDegree, toDegree;
-				float		initRadius;
-			)
-		};
-		std::map< double, std::map<uint64_t, WishChild> > childMap;
+		childMap.clear();
 		for( const auto child : wish.wishChilds ) {
 			const double dt = beatToDt( child.dt, wish.deltaGroup );
 				  auto&  inner = childMap.contains(dt) ? childMap[dt] : childMap[dt]={};
@@ -1043,7 +1030,7 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 	if( Arf.wish.size() > 131071 )
 		Arf.wish.resize(131071);
 
-	/* Index, Before, Object Count
+	/* Index, Metadata
 	 * -- Max [Before] 1048575ms, Max [HintCnt+EchoCnt] 32575.
 	 */
 	for( auto& g : Arf.deltaGroups )   // Fix Iterators
@@ -1107,11 +1094,11 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 		objCount += (e.status == SPECIAL_AUTO);
 	}
 
-	/* Other Metadatas */
-	if( objCount > 32767 )
+	if( objCount > 32767  ||  Arf.echo.size() > 32767 )
 		return lua_pushboolean(L, false), 1;
 	Arf.objectCount = objCount;
 
+	std::map<double, int16_t> stepDeltas;
 	for( const auto& idx : Arf.idxGroups ) {
 		const size_t hr = idx.hIdx.size(), er = idx.eIdx.size();
 		if( hr > 511  ||  er > 1023 )		return lua_pushboolean(L, false), 1;
@@ -1121,9 +1108,9 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 		size_t groupWgoRequired = 0;
 		for( const size_t wi : idx.wIdx ) {
 			const auto& w = Arf.wish[wi];
-			std::map<double, int16_t> stepDeltas;
 
 			// Add Steps
+			stepDeltas.clear();
 			for( const auto& c : w.wishChilds ) {
 				const double popInDt = c.dt - c.initRadius;
 				stepDeltas.contains(popInDt) ? (stepDeltas[popInDt]+=1) : (stepDeltas[popInDt]=1);
