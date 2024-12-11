@@ -881,14 +881,16 @@ int Ar::Move(lua_State* L) {
 	const float newInitBeat = checkBeat(L, LUA_REGISTRYINDEX, 0xADD8E6);
 	lua_pushnil(L), lua_rawseti(L, LUA_REGISTRYINDEX, 0xADD8E6);
 
-	float beatDelta = 0xADD8E6;
+	float beatDelta = 0xFFFFFF;
 	for( size_t i = Arf.verseWidx, ws = Arf.wish.size(); i < ws; ++i ) {
 		const float firstBeat = Arf.wish[i].nodes[0].t;
 		beatDelta = beatDelta > firstBeat ? firstBeat : beatDelta;
 	}
 	for( size_t i = Arf.verseEidx, es = Arf.echo.size(); i < es; ++i ) {
-		const float fromBeat = Arf.echo[i].fromT;
+		const auto& echo = Arf.echo[i];
+		const float fromBeat = echo.fromT, toBeat = echo.toT;
 		beatDelta = fromBeat != -0xADD8E6  &&  beatDelta > fromBeat  ?  fromBeat : beatDelta;
+		beatDelta = beatDelta > toBeat ? toBeat : beatDelta;
 	}
 	beatDelta = newInitBeat - beatDelta;
 
