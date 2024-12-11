@@ -934,11 +934,10 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 	/* Wish
 	 * -- Nodes: Sorted by beat, Unrepeated, All args within range except t.
 	 *			 Convert all Time into ms; remove all t<0 nodes but the latest one.
-	 * -- Childs: Sorted by beat, Unrepeated, All args within range except dt.
+	 * -- Childs: All args within range except dt.
 	 *			  Calculate all dts, use a map to sort & unrepeat all dt>=0 objs.
-	 * -- Max 65535 Nodes & 65535 Childs; Fix Iterators.
-	 * -- Remove Wishes with less than 2 Nodes.
-	 * -- Max 131071 Wishes. Sort them.
+	 * -- Remove Wishes with less than 2 Nodes; Max 65535 Nodes & 65535 Childs.
+	 * -- Max 131071 Wishes; Sort them & Fix Iterators.
 	 */
 	struct ChildArgs {
 		Ar32(
