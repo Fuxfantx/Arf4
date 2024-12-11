@@ -95,42 +95,21 @@ static double beatToDt(double t, const uint16_t whichDeltaGroup) {
 	return deltaGroup.dt;
 }
 
-static float getX(Arf4::Wish* const o, const float t) noexcept {
-	if( t <= o->nodes[0].t )
-		return o->nodes[0].x;
+static Arf4::Duo getXY(Arf4::Wish* const o, const float t) noexcept {
+	const auto init = o->nodes[0], last = o->nodes.back();
+	if( t <= init.t )		return { .a = init.x, .b = init.y };
+	if( t >= last.t )		return { .a = last.x, .b = last.y };
 
 	const auto lastNodeIt = o->nodes.cend() - 1;
-	if( t >= lastNodeIt->t )
-		return lastNodeIt->x;
-
 	while( o->pIt != o->nodes.cbegin()  &&  t < o->pIt->t )
 		-- o->pIt;
 	while( o->pIt != lastNodeIt ) {
 		const auto nextNodeIt = o->pIt + 1;
 		if( t < nextNodeIt->t )
-			return Ar::InterpolatePoint( *( o->pIt ), *nextNodeIt, t ).a;
+			return Ar::InterpolatePoint( *( o->pIt ), *nextNodeIt, t );
 		++ o-> pIt;
 	}
-	return 0;
-}
-
-static float getY(Arf4::Wish* const o, const float t) noexcept {
-	if( t <= o->nodes[0].t )
-		return o->nodes[0].y;
-
-	const auto lastNodeIt = o->nodes.cend() - 1;
-	if( t >= lastNodeIt->t )
-		return lastNodeIt->y;
-
-	while( o->pIt != o->nodes.cbegin()  &&  t < o->pIt->t )
-		-- o->pIt;
-	while( o->pIt != lastNodeIt ) {
-		const auto nextNodeIt = o->pIt + 1;
-		if( t < nextNodeIt->t )
-			return Ar::InterpolatePoint( *( o->pIt ), *nextNodeIt, t ).b;
-		++ o-> pIt;
-	}
-	return 0;
+	return {};
 }
 
 
@@ -190,7 +169,7 @@ static float checkX(lua_State* L, const int idx, const int n, const float t) {
 
 			// Use this
 			const auto pWish = (Arf4::Wish*)lua_touserdata(L, -3);
-			return lua_pop(L,3), getX(pWish,t);
+			return lua_pop(L,3), getXY(pWish, t).a;
 		}
 		default:;
 	}
@@ -224,7 +203,7 @@ static float checkY(lua_State* L, const int idx, const int n, const float t) {
 
 			// Use this
 			const auto pWish = (Arf4::Wish*)lua_touserdata(L, -3);
-			return lua_pop(L,3), getY(pWish,t);
+			return lua_pop(L,3), getXY(pWish, t).b;
 		}
 		default:;
 	}
@@ -269,30 +248,12 @@ static int scriptGetXY(lua_State* L) {
 	 * local x2, y2 = table.unpack( myWish{1,1/16} )
 	 */
 	const auto w = (Arf4::Wish*)lua_touserdata(L, -1);
-	Arf4::Duo xy = { .a = 0, .b = 0 };
-
-	// Check Beat
 	lua_rawseti(L, LUA_REGISTRYINDEX, 0xADD8E6);
+
 	const float t = checkBeat(L, LUA_REGISTRYINDEX, 0xADD8E6);
 	lua_pushnil(L), lua_rawseti(L, LUA_REGISTRYINDEX, 0xADD8E6);
 
-	// Query XY & Return
-	if( t <= w->nodes[0].t )
-		xy.a = w->nodes[0].x, xy.b = w->nodes[0].y;
-	else if( const auto lastNodeIt = w->nodes.cend() - 1; t >= lastNodeIt->t )
-		xy.a = lastNodeIt->x, xy.b = lastNodeIt->y;
-	else {
-		while( w->pIt != w->nodes.cbegin()  &&  t < w->pIt->t )
-			-- w->pIt;
-		while( w->pIt != lastNodeIt ) {
-			const auto nextNodeIt = w->pIt + 1;
-			if( t < nextNodeIt->t ) {
-				xy = Ar::InterpolatePoint( *( w->pIt ), *nextNodeIt, t );
-				break;
-			}
-			++ w-> pIt;
-		}
-	}
+	const Arf4::Duo xy = getXY(w, t);
 	lua_createtable(L, 2, 0);   // [2]
 	lua_pushnumber(L, xy.a), lua_rawseti(L, 2, 1);
 	lua_pushnumber(L, xy.b), lua_rawseti(L, 2, 2);
@@ -954,9 +915,8 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 	for( const auto hintProto : Arf.hint ) {
 		const auto pWish = (Wish*)hintProto.pWish;
 		float time = pWish->nodes[0].t + hintProto.relT;
-		const Duo pos = {
-			.a = getX(pWish, time), .b = getY(pWish, time)
-		};
+		const Duo pos = getXY(pWish, time);
+
 		if( time = beatToMs(time), time >= 510 && time < 1048576 ) {
 			auto& inner = validHints.contains(time) ? validHints[time] : validHints[time]={};
 			inner[ pos.whole ] = {
