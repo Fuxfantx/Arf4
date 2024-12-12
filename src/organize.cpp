@@ -34,19 +34,17 @@ static float barToTone(const float bar) noexcept {
 	return 0;
 }
 
-static float toneToBar(const float tone) noexcept {
-	if( tone > 0 ) {
-		while( Arf.tempoIt != Arf.tempoList.cbegin()  &&  tone < (Arf.tempoIt-1)->toneBase )
-			--Arf.tempoIt;
-		const auto lastIt = Arf.tempoList.cend() - 1;
-		while( Arf.tempoIt != lastIt ) {
-			if( tone < (Arf.tempoIt+1)->toneBase )
-				return Arf.tempoIt->init + (tone - Arf.tempoIt->toneBase) * Arf.tempoIt->b / Arf.tempoIt->a;
-			++Arf.tempoIt;
-		}
-		if( Arf.tempoIt == lastIt )
-			return lastIt->init + (tone - lastIt->toneBase) * lastIt->b / lastIt->a;
+static float toneToBar(const float tone) noexcept {   // Internally, Tone won't be negative.
+	while( Arf.tempoIt != Arf.tempoList.cbegin()  &&  tone < (Arf.tempoIt-1)->toneBase )
+		--Arf.tempoIt;
+	const auto lastIt = Arf.tempoList.cend() - 1;
+	while( Arf.tempoIt != lastIt ) {
+		if( tone < (Arf.tempoIt+1)->toneBase )
+			return Arf.tempoIt->init + (tone - Arf.tempoIt->toneBase) * Arf.tempoIt->b / Arf.tempoIt->a;
+		++Arf.tempoIt;
 	}
+	if( Arf.tempoIt == lastIt )
+		return lastIt->init + (tone - lastIt->toneBase) * lastIt->b / lastIt->a;
 	return 0;
 }
 
@@ -66,41 +64,35 @@ static float barToBeat(const float bar) noexcept {
 	return 0;
 }
 
-static float beatToMs(const float beat) noexcept {
-	if( beat > 0 ) {
-		while( Arf.beatIt != Arf.beatToMs.cbegin()  &&  beat < (Arf.beatIt-1)->init )
-			--Arf.beatIt;
-		const auto lastIt = Arf.beatToMs.cend() - 1;
-		while( Arf.beatIt != lastIt ) {
-			if( beat < (Arf.beatIt+1)->init )
-				return Arf.beatIt->base + (beat - Arf.beatIt->init) * Arf.beatIt->value;
-			++Arf.beatIt;
-		}
-		if( Arf.beatIt == lastIt )
-			return lastIt->base + (beat - lastIt->init) * lastIt->value;
+static float beatToMs(const float beat) noexcept {   // Internally, Beat won't be negative.
+	while( Arf.beatIt != Arf.beatToMs.cbegin()  &&  beat < (Arf.beatIt-1)->init )
+		--Arf.beatIt;
+	const auto lastIt = Arf.beatToMs.cend() - 1;
+	while( Arf.beatIt != lastIt ) {
+		if( beat < (Arf.beatIt+1)->init )
+			return Arf.beatIt->base + (beat - Arf.beatIt->init) * Arf.beatIt->value;
+		++Arf.beatIt;
 	}
-	return Arf.beatToMs[0].base;
+	if( Arf.beatIt == lastIt )
+		return lastIt->base + (beat - lastIt->init) * lastIt->value;
+	return 0;
 }
 
 static double beatToDt(double t, const uint16_t whichDeltaGroup) noexcept {
-	if( t = beatToMs(t), t < 0 )
-		return 0;
-	auto& deltaGroup = Arf.deltaGroups[whichDeltaGroup];
-	while( deltaGroup.it != deltaGroup.nodes.cbegin()  &&  t < deltaGroup.it->init )
-		--deltaGroup.it;
-
-	const auto lastIt = deltaGroup.nodes.cend() - 1;
-	while( deltaGroup.it != lastIt ) {
-		if( t < (deltaGroup.it+1)->init ) {
-			deltaGroup.dt = deltaGroup.it->base + (t - deltaGroup.it->init) * deltaGroup.it->value;
-			return deltaGroup.dt;
+	if( (t = beatToMs(t)) > 0 ) {
+		auto& deltaGroup = Arf.deltaGroups[whichDeltaGroup];
+		while( deltaGroup.it != deltaGroup.nodes.cbegin()  &&  t < deltaGroup.it->init )
+			--deltaGroup.it;
+		const auto lastIt = deltaGroup.nodes.cend() - 1;
+		while( deltaGroup.it != lastIt ) {
+			if( t < (deltaGroup.it+1)->init )
+				return deltaGroup.it->base + (t - deltaGroup.it->init) * deltaGroup.it->value;
+			++deltaGroup.it;
 		}
-		++deltaGroup.it;
+		if( deltaGroup.it == lastIt )
+			return lastIt->base + (t - lastIt->init) * lastIt->value;
 	}
-
-	if( deltaGroup.it == lastIt )
-		deltaGroup.dt = lastIt->base + (t - lastIt->init) * lastIt->value;
-	return deltaGroup.dt;
+	return 0;
 }
 
 static Arf4::Duo getXY(Arf4::Wish* const o, const float t) noexcept {
@@ -122,51 +114,43 @@ static Arf4::Duo getXY(Arf4::Wish* const o, const float t) noexcept {
 
 
 /* Lua State Utils */
-static float checkBeat(lua_State* L, const int idx, const int n) {
-	switch( lua_rawgeti(L,idx,n), lua_type(L,-1) ) {
+static float checkBeat(lua_State* L, const int idx, const int n) noexcept {
+	switch( lua_rawgeti(L, idx, n), lua_type(L, -1) ) {
 		case LUA_TNUMBER: {
-			float x = lua_tonumber(L, -1);
-				  x = x<0 ? 0 : x;
-			return lua_pop(L,1), barToBeat(
-				toneToBar( Arf.sinceTone + (x<1 ? x*16 : x) )
+			const float x = lua_tonumber(L, -1);
+			return lua_pop(L, 1), barToBeat(
+				toneToBar( Arf.sinceTone + (x<0 ? 0 : x<1 ? x : x*0.0625f) )
 			);
 		}
 		case LUA_TTABLE: {
 			lua_rawgeti(L, -1, 1);
 			lua_rawgeti(L, -2, 2);   // [-1] additionalTone  [-2] bar  [-3] inputTime
+			Arf.sinceTone = barToTone( lua_tonumber(L, -2) );
 
-			float bar = luaL_checknumber(L, -2);
-				  bar = bar<0 ? 0 : bar;
-			Arf.sinceTone = barToTone(bar);
-
-			float x = lua_isnumber(L, -1) ? lua_tonumber(L, -1) : 0;
-				  x = x<0 ? 0 : x;
-			return lua_pop(L,3), barToBeat(
-				toneToBar( Arf.sinceTone + (x<1 ? x*16 : x) )
+			const float x = lua_tonumber(L, -1);
+			return lua_pop(L, 3), barToBeat(
+				toneToBar( Arf.sinceTone + (x<0 ? 0 : x<1 ? x : x*0.0625f) )
 			);
 		}
-		default:;
+		default:
+			return lua_pop(L, 1), 0;
 	}
-	return lua_pop(L,1), 0;
 }
 
-static float checkX(lua_State* L, const int idx, const int n, const float t) {
+static float checkX(lua_State* L, const int idx, const int n, const float t) noexcept {
 	switch( lua_rawgeti(L,idx,n), lua_type(L,-1) ) {
 		case LUA_TNUMBER: {
-			float x = lua_tonumber(L, -1) * 112.5 - 900.0;
-				  x = x < -16200 ? -16200 : x > 16200 ? 16200 : x;
-			return lua_pop(L,1), x;
+			const float x = lua_tonumber(L, -1) * 112.5 - 900.0;
+			return lua_pop(L,1), x < -16200 ? -16200 : x > 16200 ? 16200 : x;
 		}
 		case LUA_TSTRING: {   // Mirror
-			float x = 900.0 - lua_tonumber(L, -1) * 112.5;
-				  x = x < -16200 ? -16200 : x > 16200 ? 16200 : x;
-			return lua_pop(L,1), x;
+			const float x = 900.0 - lua_tonumber(L, -1) * 112.5;
+			return lua_pop(L,1), x < -16200 ? -16200 : x > 16200 ? 16200 : x;
 		}
 		case LUA_TTABLE: {   // Wish(Time) -> {x, y}
 			lua_rawgeti(L, -1, 1);
-			float x = lua_tonumber(L, -1) * 112.5 - 900.0;
-				  x = x < -16200 ? -16200 : x > 16200 ? 16200 : x;
-			return lua_pop(L,2), x;
+			const float x = lua_tonumber(L, -1) * 112.5 - 900.0;
+			return lua_pop(L,2), x < -16200 ? -16200 : x > 16200 ? 16200 : x;
 		}
 		case LUA_TUSERDATA: {
 			// Is it a Wish or a Helper?
@@ -179,28 +163,25 @@ static float checkX(lua_State* L, const int idx, const int n, const float t) {
 			const auto pWish = (Arf4::Wish*)lua_touserdata(L, -3);
 			return lua_pop(L,3), getXY(pWish, t).a;
 		}
-		default:;
+		default:
+			return lua_pop(L,1), 0;
 	}
-	return lua_pop(L,1), 0;
 }
 
-static float checkY(lua_State* L, const int idx, const int n, const float t) {
+static float checkY(lua_State* L, const int idx, const int n, const float t) noexcept {
 	switch( lua_rawgeti(L,idx,n), lua_type(L,-1) ) {
 		case LUA_TNUMBER: {
-			float y = lua_tonumber(L, -1) * 112.5 - 450.0;
-				  y = y < -8100 ? -8100 : y > 8100 ? 8100 : y;
-			return lua_pop(L,1), y;
+			const float y = lua_tonumber(L, -1) * 112.5 - 450.0;
+			return lua_pop(L,1), y < -8100 ? -8100 : y > 8100 ? 8100 : y;
 		}
 		case LUA_TSTRING: {   // Mirror
-			float y = 450.0 - lua_tonumber(L, -1) * 112.5;
-				  y = y < -8100 ? -8100 : y > 8100 ? 8100 : y;
-			return lua_pop(L,1), y;
+			const float y = 450.0 - lua_tonumber(L, -1) * 112.5;
+			return lua_pop(L,1), y < -8100 ? -8100 : y > 8100 ? 8100 : y;
 		}
 		case LUA_TTABLE: {   // Wish(Time) -> {x, y}
 			lua_rawgeti(L, -1, 2);
-			float y = lua_tonumber(L, -1) * 112.5 - 450.0;
-				  y = y < -8100 ? -8100 : y > 8100 ? 8100 : y;
-			return lua_pop(L,1), y;
+			const float y = lua_tonumber(L, -1) * 112.5 - 450.0;
+			return lua_pop(L,2), y < -8100 ? -8100 : y > 8100 ? 8100 : y;
 		}
 		case LUA_TUSERDATA: {
 			// Is it a Wish or a Helper?
@@ -213,28 +194,28 @@ static float checkY(lua_State* L, const int idx, const int n, const float t) {
 			const auto pWish = (Arf4::Wish*)lua_touserdata(L, -3);
 			return lua_pop(L,3), getXY(pWish, t).b;
 		}
-		default:;
+		default:
+			return lua_pop(L,1), 0;
 	}
-	return lua_pop(L,1), 0;
 }
 
-static Arf4::Duo checkEase(lua_State* L, const int idx, const int n, uint8_t* easeType) {
+static Arf4::Duo checkEase(lua_State* L, const int idx, const int n, uint8_t* easeType) noexcept {
 	switch( lua_rawgeti(L,idx,n), lua_type(L,-1) ) {
 		case LUA_TNUMBER: {
-			const uint8_t type = lua_tointeger(L, -1);
-					 *easeType = type > 15 ? Arf4::LINEAR : type;
+			const uint64_t type = lua_tointeger(L, -1);
+					  *easeType = type > 15 ? Arf4::LINEAR : type;
 			break;
 		}
 		case LUA_TTABLE: {
 			lua_rawgeti(L, -1, 1);
 			lua_rawgeti(L, -2, 2);
 			lua_rawgeti(L, -3, 3);   // [-1] ce  [-2] ci  [-3] type  [-4] ease table
-			const uint8_t type = luaL_checkinteger(L, -3);
-					 *easeType = type > 15 ? Arf4::LINEAR : type;
+			const uint64_t type = lua_tointeger(L, -3);
+					  *easeType = type > 15 ? Arf4::LINEAR : type;
 
 			Arf4::FloatInDetail ci, ce;
-			ci.f = lua_isnumber(L, -2) ? (float)lua_tonumber(L, -2) : 0.0f;
-			ce.f = lua_isnumber(L, -1) ? (float)lua_tonumber(L, -1) : 1.0f;
+			ci.f = (float)lua_tonumber(L, -2);
+			ce.f = (float)lua_tonumber(L, -1);
 			ci.f = ci.f < 0.0f ? 0.0f : ci.f > 1.0f ? 1.0f : ci.f;
 			ce.f = ce.f < 0.0f ? 0.0f : ce.f > 1.0f ? 1.0f : ce.f;
 			if( ci.f > ce.f ) {
@@ -251,25 +232,28 @@ static Arf4::Duo checkEase(lua_State* L, const int idx, const int n, uint8_t* ea
 	return { .aa = 0, .bb = 0 };
 }
 
-static int scriptGetXY(lua_State* L) {
+static int scriptGetXY(lua_State* L) noexcept {
 	/* Usage:
 	 * local x1, y1 = table.unpack( myWish(0) )
 	 * local x2, y2 = table.unpack( myWish{1,1/16} )
 	 */
+	Arf4::Duo xy;
 	const auto w = (Arf4::Wish*)lua_touserdata(L, -1);
-	lua_rawseti(L, LUA_REGISTRYINDEX, 0xADD8E6);
-
-	const float t = checkBeat(L, LUA_REGISTRYINDEX, 0xADD8E6);
+	if( lua_type(L, -1) == LUA_TTABLE )
+		xy = getXY( w,
+			( lua_rawseti(L, LUA_REGISTRYINDEX, 0xADD8E6), checkBeat(L, -10000, 0xADD8E6) )
+		), lua_rawgeti(L, LUA_REGISTRYINDEX, 0xADD8E6);   // [2]
+	else
+		xy = getXY( w,
+			( lua_rawseti(L, LUA_REGISTRYINDEX, 0xADD8E6), checkBeat(L, -10000, 0xADD8E6) )
+		), lua_createtable(L, 2, 0);   // [2]
 	lua_pushnil(L), lua_rawseti(L, LUA_REGISTRYINDEX, 0xADD8E6);
-
-	const Arf4::Duo xy = getXY(w, t);
-	lua_createtable(L, 2, 0);   // [2]
 	lua_pushnumber(L, xy.a), lua_rawseti(L, 2, 1);
 	lua_pushnumber(L, xy.b), lua_rawseti(L, 2, 2);
 	return 1;
 }
 
-static int helperGcMethod(lua_State* L) {
+static int helperGcMethod(lua_State* L) noexcept {
 	( (Arf4::Wish*)lua_touserdata(L,1) ) -> ~Wish();
 	return 0;
 }
@@ -393,7 +377,7 @@ int Ar::NewDeltaGroup(lua_State* L) {
 	 *     ···
 	 * }
 	 */
-	if( Arf.deltaGroups.size() > 65535 )
+	if( Arf.deltaGroups.size() > 65535  ||  !lua_istable(L, 1) )
 		return lua_pushinteger(L, 0), 1;
 	deltaMap.clear();
 
@@ -506,6 +490,9 @@ int Ar::NewHelper(lua_State* L) {
 	 *     ···
 	 * }
 	 */
+	if( !lua_istable(L, 1) )
+		return lua_pushnil(L), 1;
+
 	nodeMap.clear();
 	const size_t inputLen = lua_objlen(L, 1);
 	for( size_t i = 1; i < inputLen; i+=4 ) {
@@ -833,33 +820,35 @@ int Ar::Move(lua_State* L) {
 	/* Usage:
 	 * Move( {0} )			-- New Init Position(to be converted to Beat)
 	 */
-	lua_rawseti(L, LUA_REGISTRYINDEX, 0xADD8E6);
-	const float newInitBeat = checkBeat(L, LUA_REGISTRYINDEX, 0xADD8E6);
-	lua_pushnil(L), lua_rawseti(L, LUA_REGISTRYINDEX, 0xADD8E6);
+	if( lua_gettop(L) ) {
+		lua_rawseti(L, LUA_REGISTRYINDEX, 0xADD8E6);
+		const float newInitBeat = checkBeat(L, LUA_REGISTRYINDEX, 0xADD8E6);
+		lua_pushnil(L), lua_rawseti(L, LUA_REGISTRYINDEX, 0xADD8E6);
 
-	float beatDelta = 0xFFFFFF;
-	for( size_t i = Arf.verseWidx, ws = Arf.wish.size(); i < ws; ++i ) {
-		const float firstBeat = Arf.wish[i].nodes[0].t;
-		beatDelta = beatDelta > firstBeat ? firstBeat : beatDelta;
-	}
-	for( size_t i = Arf.verseEidx, es = Arf.echo.size(); i < es; ++i ) {
-		const auto& echo = Arf.echo[i];
-		const float fromBeat = echo.fromT, toBeat = echo.toT;
-		beatDelta = fromBeat != -0xADD8E6  &&  beatDelta > fromBeat  ?  fromBeat : beatDelta;
-		beatDelta = beatDelta > toBeat ? toBeat : beatDelta;
-	}
-	beatDelta = newInitBeat - beatDelta;
+		float beatDelta = 0xFFFFFF;
+		for( size_t i = Arf.verseWidx, ws = Arf.wish.size(); i < ws; ++i ) {
+			const float firstBeat = Arf.wish[i].nodes[0].t;
+			beatDelta = beatDelta > firstBeat ? firstBeat : beatDelta;
+		}
+		for( size_t i = Arf.verseEidx, es = Arf.echo.size(); i < es; ++i ) {
+			const auto& echo = Arf.echo[i];
+			const float fromBeat = echo.fromT, toBeat = echo.toT;
+			beatDelta = fromBeat != -0xADD8E6  &&  beatDelta > fromBeat  ?  fromBeat : beatDelta;
+			beatDelta = beatDelta > toBeat ? toBeat : beatDelta;
+		}
+		beatDelta = newInitBeat - beatDelta;
 
-	for( size_t i = Arf.verseWidx, ws = Arf.wish.size(); i < ws; ++i ) {
-		auto& wish = Arf.wish[i];
-		for( auto& node : wish.nodes )
-			node.t += beatDelta;
-		for( auto& child : wish.wishChilds )
-			child.dt += beatDelta;
-	}
-	for( size_t i = Arf.verseEidx, es = Arf.echo.size(); i < es; ++i ) {
-		auto& echo = Arf.echo[i];
-		echo.fromT += beatDelta, echo.toT += beatDelta;
+		for( size_t i = Arf.verseWidx, ws = Arf.wish.size(); i < ws; ++i ) {
+			auto& wish = Arf.wish[i];
+			for( auto& node : wish.nodes )
+				node.t += beatDelta;
+			for( auto& child : wish.wishChilds )
+				child.dt += beatDelta;
+		}
+		for( size_t i = Arf.verseEidx, es = Arf.echo.size(); i < es; ++i ) {
+			auto& echo = Arf.echo[i];
+			echo.fromT += beatDelta, echo.toT += beatDelta;
+		}
 	}
 	return 0;
 }
