@@ -940,7 +940,7 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 	Arf.hint.clear();
 	for( const auto& outer : validHints )
 		for( auto [_, hint] : outer.second )
-			hint.status = Arf.spJudged == 31 ? hint.status : AUTO,
+			hint.status = Arf.spJudged == 31 ? AUTO : hint.status,
 			Arf.spJudged += hint.status == SPECIAL_AUTO,
 			Arf.hint.push_back(hint);
 	Arf.spJudged = 0;
