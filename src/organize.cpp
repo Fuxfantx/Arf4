@@ -363,6 +363,31 @@ int Ar::NewBuild(lua_State* L) {
 	return 0;
 }
 
+int Ar::DeltaTone(lua_State* L) {
+	/* Usage:
+	 * local delta_tone = DeltaTone( {1, 1/16}, {2, 5/32} )
+	 */
+	float lTone = 0, rTone = 0;
+	if( lua_type(L, 1) == LUA_TTABLE )   // [-1] additionalTone  [-2] bar
+		lua_rawgeti(L, 1, 1),
+		lua_rawgeti(L, 1, 2),
+		lTone = lua_tonumber(L, -1),
+		lTone = barToTone( lua_tonumber(L, -2) ) + (lTone<0 ? 0 : lTone<1 ? lTone : lTone*0.0625f);
+	else
+		lTone = lua_tonumber(L, 1),
+		lTone = Arf.sinceTone + (lTone<0 ? 0 : lTone<1 ? lTone : lTone*0.0625f);
+
+	if( lua_type(L, 2) == LUA_TTABLE )
+		lua_rawgeti(L, 2, 1),
+		lua_rawgeti(L, 2, 2),
+		rTone = lua_tonumber(L, -1),
+		rTone = barToTone( lua_tonumber(L, -2) ) + (rTone<0 ? 0 : rTone<1 ? rTone : rTone*0.0625f);
+	else
+		rTone = lua_tonumber(L, 1),
+		rTone = Arf.sinceTone + (rTone<0 ? 0 : rTone<1 ? rTone : rTone*0.0625f);
+	return lua_pushnumber(L, rTone - lTone), 1;
+}
+
 static std::map<float, float> deltaMap;
 int Ar::NewDeltaGroup(lua_State* L) noexcept {
 	/* Usage:
@@ -393,7 +418,7 @@ int Ar::NewDeltaGroup(lua_State* L) noexcept {
 	auto& thisGroup = ( Arf.deltaGroups.push_back({}), Arf.deltaGroups[idx] );
 		  thisGroup.nodes.reserve( deltaMap.size() );
 	for( const auto [ms, ratio] : deltaMap )
-		if( const float last_ratio = thisGroup.nodes.back().value; ratio != last_ratio )
+		if( thisGroup.nodes.empty()  ||  ratio != thisGroup.nodes.back().value )
 			thisGroup.nodes.push_back({ .init = ms, .value = ratio });
 
 	const size_t groupLen = thisGroup.nodes.size();
@@ -402,7 +427,7 @@ int Ar::NewDeltaGroup(lua_State* L) noexcept {
 			  auto& thisNode = thisGroup.nodes[i];
 		thisNode.base = lastNode.base + (thisNode.init - lastNode.init) * lastNode.value;
 	}
-	Arf.deltaGroups[idx].it = thisGroup.nodes.cbegin();
+	thisGroup.it = thisGroup.nodes.cbegin();
 
 	lua_pushinteger(L, idx);
 	return 1;
@@ -615,7 +640,7 @@ int Ar::NewHint(lua_State* L) {
 	 *     {1}, 1, 2, 3, 4, ···					-- Times
 	 * }
 	 */
-	if( Arf.wish.size() ) {
+	if( !Arf.wish.empty() ) {
 		const bool isSpecial = ( lua_getfield(L, 1, "Special"), lua_toboolean(L, -1) );
 		lua_pop(L, 1);
 
@@ -949,7 +974,8 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 	for( auto& g : Arf.deltaGroups )
 		g.it = g.nodes.cbegin();
 	for( auto& w : Arf.wish )
-		w.pIt = w.nodes.cbegin(), w.cIt = w.wishChilds.cbegin();
+		w.pIt = w.nodes.cbegin(),
+		w.cIt = w.wishChilds.cbegin();
 	Arf.idxGroups.reserve(2047);
 
 	size_t objCount = Arf.hint.size();
