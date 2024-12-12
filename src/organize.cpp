@@ -78,7 +78,7 @@ static float beatToMs(const float beat) noexcept {   // Internally, Beat won't b
 	return 0;
 }
 
-static double beatToDt(double t, const uint16_t whichDeltaGroup) noexcept {
+static double beatToDt(double t, const uint16_t whichDeltaGroup) noexcept {   // Might be smaller than 0
 	if( (t = beatToMs(t)) > 0 ) {
 		auto& deltaGroup = Arf.deltaGroups[whichDeltaGroup];
 		while( deltaGroup.it != deltaGroup.nodes.cbegin()  &&  t < deltaGroup.it->init )
@@ -133,7 +133,7 @@ static float checkBeat(lua_State* L, const int idx, const int n) noexcept {
 			);
 		}
 		default:
-			return lua_pop(L, 1), 0;
+			return lua_pop(L, 1), barToTone( toneToBar( Arf.sinceTone ) );
 	}
 }
 
@@ -214,10 +214,8 @@ static Arf4::Duo checkEase(lua_State* L, const int idx, const int n, uint8_t* ea
 					  *easeType = type > 15 ? Arf4::LINEAR : type;
 
 			Arf4::FloatInDetail ci, ce;
-			ci.f = (float)lua_tonumber(L, -2);
-			ce.f = (float)lua_tonumber(L, -1);
-			ci.f = ci.f < 0.0f ? 0.0f : ci.f > 1.0f ? 1.0f : ci.f;
-			ce.f = ce.f < 0.0f ? 0.0f : ce.f > 1.0f ? 1.0f : ce.f;
+			ci.f = (float)lua_tonumber(L, -2);	 ci.f = ci.f < 0.0f ? 0.0f : ci.f > 1.0f ? 1.0f : ci.f;
+			ce.f = (float)lua_tonumber(L, -1);	 ce.f = ce.f < 0.0f ? 0.0f : ce.f > 1.0f ? 1.0f : ce.f;
 			if( ci.f > ce.f ) {
 				const float temp = ci.f;
 				ci.f = ce.f, ce.f = temp;
@@ -345,9 +343,8 @@ int Ar::NewBuild(lua_State* L) {
 			Arf.beatToMs.push_back({ .base = offset, .init = 0, .value = 60000 / 170.0f });
 			break;
 		case 1:
-			Arf.beatToMs.push_back({
-				.base = offset, .init = 0, .value = bpmMap.cbegin()->second.value
-			});
+			Arf.beatToMs.push_back({ .base = offset, .init = 0,
+									 .value = bpmMap.cbegin()->second.value });
 			break;
 		default:
 			Arf.beatToMs.reserve( bpmCnt );
@@ -367,7 +364,7 @@ int Ar::NewBuild(lua_State* L) {
 }
 
 static std::map<float, float> deltaMap;
-int Ar::NewDeltaGroup(lua_State* L) {
+int Ar::NewDeltaGroup(lua_State* L) noexcept {
 	/* Usage:
 	 * local my_1st_group = DeltaGroup {	-- Returns the idx(0 here)
 	 *     {0},			1,					-- Bar 0, Ratio: 1
@@ -384,7 +381,7 @@ int Ar::NewDeltaGroup(lua_State* L) {
 	const size_t inputLen = lua_objlen(L, 1);
 	for( size_t i = 1; i < inputLen; i+=2 ) {
 		const float ms = beatToMs( checkBeat(L, 1, i) );
-		float ratio = ( lua_rawgeti(L, 1, i+1), luaL_checknumber(L, -1) ) * 170 / 15000;
+		float ratio = ( lua_rawgeti(L, 1, i+1), lua_tonumber(L, -1) ) * 170 / 15000;
 			  ratio = ratio < -16 ? -16 : ratio > 16 ? 16 : ratio;
 		deltaMap[ms] = ratio;
 		lua_pop(L, 1);
@@ -396,8 +393,8 @@ int Ar::NewDeltaGroup(lua_State* L) {
 	auto& thisGroup = ( Arf.deltaGroups.push_back({}), Arf.deltaGroups[idx] );
 		  thisGroup.nodes.reserve( deltaMap.size() );
 	for( const auto [ms, ratio] : deltaMap )
-		thisGroup.nodes.push_back({ .init = ms, .value = ratio });
-	thisGroup.nodes[0].init = 0;
+		if( const float last_ratio = thisGroup.nodes.back().value; ratio != last_ratio )
+			thisGroup.nodes.push_back({ .init = ms, .value = ratio });
 
 	const size_t groupLen = thisGroup.nodes.size();
 	for( size_t i = 1; i < groupLen; ++i ) {
@@ -425,12 +422,9 @@ int Ar::NewWish(lua_State* L) {
 	 *     ···
 	 * }
 	 */
-	size_t whichDeltaGroup = 0;
 	const bool isSpecial = ( lua_getfield(L, 1, "Special"), lua_toboolean(L, -1) );
-	if( lua_getfield(L, 1, "DeltaGroup"), lua_isnumber(L, -1) ) {
-		whichDeltaGroup = lua_tointeger(L, -1);
-		whichDeltaGroup = whichDeltaGroup < Arf.deltaGroups.size() ? whichDeltaGroup : 0;
-	}
+	size_t whichDeltaGroup = ( lua_getfield(L, 1, "DeltaGroup"), lua_tointeger(L, -1) );
+		   whichDeltaGroup = whichDeltaGroup < Arf.deltaGroups.size() ? whichDeltaGroup : 0;
 	lua_pop(L, 2);
 
 	nodeMap.clear();
@@ -469,7 +463,7 @@ int Ar::NewWish(lua_State* L) {
 			thisNode.ease = WHEN_DXDY_ABOVEZERO[ thisNode.ease ];
 	}
 	auto& lastNode = newWish.nodes[lastNodeIdx];
-		  lastNode.ease = 0, lastNode.ci = 0, lastNode.ce = 1023;
+		  lastNode.ease = 0, lastNode.ci = 0, lastNode.ce = 0;
 
 	// Do Return
 	lua_pushlightuserdata(L, &newWish);															// [2]
@@ -482,7 +476,7 @@ int Ar::NewWish(lua_State* L) {
 	return 1;
 }
 
-int Ar::NewHelper(lua_State* L) {
+int Ar::NewHelper(lua_State* L) noexcept {
 	/* Usage:
 	 * local myHelperOrNil = Helper {	-- For getX/getY usages only.
 	 *     {1}, 4, 3, LINEAR,			-- Bar 1, X=4, Y=3, Linear Ease
@@ -526,7 +520,7 @@ int Ar::NewHelper(lua_State* L) {
 			thisNode.ease = WHEN_DXDY_ABOVEZERO[ thisNode.ease ];
 	}
 	auto& lastNode = pNewHelper->nodes[lastNodeIdx];
-		  lastNode.ease = 0, lastNode.ci = 0, lastNode.ce = 1023;
+		  lastNode.ease = 0, lastNode.ci = 0, lastNode.ce = 0;
 
 	// Do Return
 	if( lua_getfield(L, LUA_REGISTRYINDEX, "AR_HELPER_METATABLE"), lua_isnil(L, -1) ) {   // [3]
