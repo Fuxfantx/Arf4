@@ -19,62 +19,70 @@ constexpr uint8_t WHEN_DXDY_UNDERZERO[] = { 0,
 
 /* Internal Fns */
 static float barToTone(const float bar) noexcept {
-	while( Arf.tempoIt != Arf.tempoList.cbegin()  &&  bar < (Arf.tempoIt-1)->init )
-		--Arf.tempoIt;
-	const auto lastIt = Arf.tempoList.cend() - 1;
-	while( Arf.tempoIt != lastIt ) {
-		if( bar < (Arf.tempoIt+1)->init )
-			return Arf.tempoIt->toneBase + (bar - Arf.tempoIt->init) * Arf.tempoIt->a / Arf.tempoIt->b;
-		++Arf.tempoIt;
+	if( bar > 0 ) {
+		while( Arf.tempoIt != Arf.tempoList.cbegin()  &&  bar < (Arf.tempoIt-1)->init )
+			--Arf.tempoIt;
+		const auto lastIt = Arf.tempoList.cend() - 1;
+		while( Arf.tempoIt != lastIt ) {
+			if( bar < (Arf.tempoIt+1)->init )
+				return Arf.tempoIt->toneBase + (bar - Arf.tempoIt->init) * Arf.tempoIt->a / Arf.tempoIt->b;
+			++Arf.tempoIt;
+		}
+		if( Arf.tempoIt == lastIt )
+			return lastIt->toneBase + (bar - lastIt->init) * lastIt->a / lastIt->b;
 	}
-	if( Arf.tempoIt == lastIt )
-		return lastIt->toneBase + (bar - lastIt->init) * lastIt->a / lastIt->b;
 	return 0;
 }
 
 static float toneToBar(const float tone) noexcept {
-	while( Arf.tempoIt != Arf.tempoList.cbegin()  &&  tone < (Arf.tempoIt-1)->toneBase )
-		--Arf.tempoIt;
-	const auto lastIt = Arf.tempoList.cend() - 1;
-	while( Arf.tempoIt != lastIt ) {
-		if( tone < (Arf.tempoIt+1)->toneBase )
-			return Arf.tempoIt->init + (tone - Arf.tempoIt->toneBase) * Arf.tempoIt->b / Arf.tempoIt->a;
-		++Arf.tempoIt;
+	if( tone > 0 ) {
+		while( Arf.tempoIt != Arf.tempoList.cbegin()  &&  tone < (Arf.tempoIt-1)->toneBase )
+			--Arf.tempoIt;
+		const auto lastIt = Arf.tempoList.cend() - 1;
+		while( Arf.tempoIt != lastIt ) {
+			if( tone < (Arf.tempoIt+1)->toneBase )
+				return Arf.tempoIt->init + (tone - Arf.tempoIt->toneBase) * Arf.tempoIt->b / Arf.tempoIt->a;
+			++Arf.tempoIt;
+		}
+		if( Arf.tempoIt == lastIt )
+			return lastIt->init + (tone - lastIt->toneBase) * lastIt->b / lastIt->a;
 	}
-	if( Arf.tempoIt == lastIt )
-		return lastIt->init + (tone - lastIt->toneBase) * lastIt->b / lastIt->a;
 	return 0;
 }
 
 static float barToBeat(const float bar) noexcept {
-	while( Arf.tempoIt != Arf.tempoList.cbegin()  &&  bar < (Arf.tempoIt-1)->init )
-		--Arf.tempoIt;
-	const auto lastIt = Arf.tempoList.cend() - 1;
-	while( Arf.tempoIt != lastIt ) {
-		if( bar < (Arf.tempoIt+1)->init )
-			return Arf.tempoIt->beatBase + (bar - Arf.tempoIt->init) * Arf.tempoIt->a;
-		++Arf.tempoIt;
+	if( bar > 0 ) {
+		while( Arf.tempoIt != Arf.tempoList.cbegin()  &&  bar < (Arf.tempoIt-1)->init )
+			--Arf.tempoIt;
+		const auto lastIt = Arf.tempoList.cend() - 1;
+		while( Arf.tempoIt != lastIt ) {
+			if( bar < (Arf.tempoIt+1)->init )
+				return Arf.tempoIt->beatBase + (bar - Arf.tempoIt->init) * Arf.tempoIt->a;
+			++Arf.tempoIt;
+		}
+		if( Arf.tempoIt == lastIt )
+			return lastIt->beatBase + (bar - lastIt->init) * lastIt->a;
 	}
-	if( Arf.tempoIt == lastIt )
-		return lastIt->beatBase + (bar - lastIt->init) * lastIt->a;
 	return 0;
 }
 
 static float beatToMs(const float beat) noexcept {
-	while( Arf.beatIt != Arf.beatToMs.cbegin()  &&  beat < (Arf.beatIt-1)->init )
-		--Arf.beatIt;
-	const auto lastIt = Arf.beatToMs.cend() - 1;
-	while( Arf.beatIt != lastIt ) {
-		if( beat < (Arf.beatIt+1)->init )
-			return Arf.beatIt->base + (beat - Arf.beatIt->init) * Arf.beatIt->value;
-		++Arf.beatIt;
+	if( beat > 0 ) {
+		while( Arf.beatIt != Arf.beatToMs.cbegin()  &&  beat < (Arf.beatIt-1)->init )
+			--Arf.beatIt;
+		const auto lastIt = Arf.beatToMs.cend() - 1;
+		while( Arf.beatIt != lastIt ) {
+			if( beat < (Arf.beatIt+1)->init )
+				return Arf.beatIt->base + (beat - Arf.beatIt->init) * Arf.beatIt->value;
+			++Arf.beatIt;
+		}
+		if( Arf.beatIt == lastIt )
+			return lastIt->base + (beat - lastIt->init) * lastIt->value;
 	}
-	if( Arf.beatIt == lastIt )
-		return lastIt->base + (beat - lastIt->init) * lastIt->value;
-	return 0;
+	return Arf.beatToMs[0].base;
 }
 
-static double beatToDt(double t, const uint16_t whichDeltaGroup) {
+static double beatToDt(double t, const uint16_t whichDeltaGroup) noexcept {
 	if( t = beatToMs(t), t < 0 )
 		return 0;
 	auto& deltaGroup = Arf.deltaGroups[whichDeltaGroup];
@@ -286,49 +294,38 @@ int Ar::NewBuild(lua_State* L) {
 	 *     ···
 	 * }
 	 */
-	double offset = 0;
-	if( lua_getfield(L, 1, "Offset"), lua_isnumber(L, -1) )
-		offset = lua_tonumber(L, -1);
-	lua_pop(L, 1);
+	const double offset = ( lua_getfield(L, 1, "Offset"), lua_tonumber(L, -1) );
+	lua_pop(L, 1);   // If succeeded, [1] must be a Table since then.
+	Arf = {};
 
-	// Input: Tempo
+	// Tempo
 	std::map<float, Fumen::Tempo> tempoMap;
 	if( size_t tempoInputLen = ( lua_getfield(L, 1, "Tempo"), 0 );
 		lua_istable(L,-1)  &&  ( tempoInputLen = lua_objlen(L,-1) ) > 2
 	) for( size_t i = 1; i < tempoInputLen; i+=3 ) {   // [1] Args Table  [2] Tempo Table
-		float bar = ( lua_rawgeti(L, 2, i), luaL_checknumber(L, -1) );
-			  bar = bar<0 ? 0 : bar;
-		uint16_t a = ( lua_rawgeti(L, 2, i+1), luaL_checkinteger(L, -1) );
-				 a = a<1 ? 1 : a;
-		uint16_t b = ( lua_rawgeti(L, 2, i+2), luaL_checkinteger(L, -1) );
-				 b = b<1 ? 1 : b;
-		tempoMap[bar] = { .init = bar, .a = a, .b = b };
+		float bar = ( lua_rawgeti(L, 2, i), lua_tonumber(L, -1) );
+			  bar = bar < 0 ? 0 : bar;
+		uint64_t a = ( lua_rawgeti(L, 2, i+1), lua_tointeger(L, -1) );
+				 a = a < 1  ||  a > 65535  ?  1 : a ;
+		uint64_t b = ( lua_rawgeti(L, 2, i+2), lua_tointeger(L, -1) );
+				 b = b < 1  ||  b > 65535  ?  1 : b ;
+		tempoMap[bar] = { .init = bar, .a = (uint16_t)a, .b = (uint16_t)b };
 		lua_pop(L, 3);
 	}
 	lua_pop(L, 1);
 
-	// Input: BPM
-	std::vector<float> bpmInputs;
+	// BPM Input
+	std::map<float, DeltaNode> bpmMap;
 	const size_t bpmInputLen = lua_objlen(L, 1);
-	bpmInputs.reserve( bpmInputLen );
-	for( size_t i = 1; i <= bpmInputLen; ++i )
-		bpmInputs.push_back(( lua_rawgeti(L, 1, i), luaL_checknumber(L, -1) )),
-		lua_pop(L, 1);
-
-	Arf = {};
 	if( tempoMap.empty() ) {
 		Arf.tempoList.push_back({ .init = 0, .a = 4, .b = 4 });
 		Arf.tempoIt = Arf.tempoList.cbegin();
 
-		if( bpmInputLen > 1  &&  bpmInputLen % 2 == 0 ) {
-			Arf.beatToMs.reserve( bpmInputLen / 2 );
-			for( size_t i = 0; i < bpmInputLen; ++i ) {
-				float beat = bpmInputs[i] * 4;
-					  beat = beat < 0 ? 0 : beat;
-				float bpm = bpmInputs[++i];
-					  bpm = bpm > 0 ? bpm : 170;
-				Arf.beatToMs.push_back({ .init = beat, .value = 60000.0f / bpm });
-			}
+		for( size_t i = 1; i < bpmInputLen; i += 2 ) {
+			const float beat /* Never <0 */ = barToBeat(( lua_rawgeti(L,1,i), lua_tonumber(L,-1) ));
+			float bpm = ( lua_rawgeti(L, 1, i+1), lua_tonumber(L, -1) );
+				  bpm = bpm > 0 ? bpm : 170;
+			bpmMap[beat] = { .init = beat, .value = 60000 / bpm };
 		}
 	}
 	else {
@@ -348,46 +345,38 @@ int Ar::NewBuild(lua_State* L) {
 		}
 		Arf.tempoIt = Arf.tempoList.cbegin();
 
-		if( bpmInputLen > 2  &&  bpmInputLen % 3 == 0 ) {
-			Arf.beatToMs.reserve( bpmInputLen / 3 );
-			for( size_t i = 0; i < bpmInputLen; ++i ) {
-				float bar = bpmInputs[i];
-					  bar = bar < 0 ? 0 : bar;
-				float abt = bpmInputs[++i];
-					  abt = abt < 0 ? 0 : abt;
-				float bpm = bpmInputs[++i];
-					  bpm = bpm > 0 ? bpm : 170;
-				Arf.beatToMs.push_back({ .init = barToBeat(bar) + abt, .value = 60000.0f / bpm });
-			}
+		for( size_t i = 1; i < bpmInputLen; i += 3 ) {
+			float beat = barToBeat(( lua_rawgeti(L, 1, i), lua_tonumber(L, -1) ))
+					   + ( lua_rawgeti(L, 1, i+1), lua_tonumber(L, -1) );
+				  beat = beat < 0 ? 0 : beat;
+			float bpm = ( lua_rawgeti(L, 1, i+2), lua_tonumber(L, -1) );
+				  bpm = bpm > 0 ? bpm : 170;
+			bpmMap[beat] = { .init = beat, .value = 60000 / bpm };
 		}
 	}
 
-	switch( Arf.beatToMs.size() ) {
+	// Organize BPMs
+	switch( const size_t bpmCnt = bpmMap.size(); bpmCnt ) {
 		case 0:
 			Arf.beatToMs.push_back({ .base = offset, .init = 0, .value = 60000 / 170.0f });
 			break;
 		case 1:
-			Arf.beatToMs[0].init = 0;
-			Arf.beatToMs[0].base = offset;
+			Arf.beatToMs.push_back({
+				.base = offset, .init = 0, .value = bpmMap.cbegin()->second.value
+			});
 			break;
-		default: {
-			std::map<float, DeltaNode> beatToMsMap;
-			for( const auto node : Arf.beatToMs )
-				beatToMsMap[ node.init ] = node;
-			Arf.beatToMs.clear();
-
-			for( const auto [_, bpm] : beatToMsMap )
-				Arf.beatToMs.push_back(bpm);
+		default:
+			Arf.beatToMs.reserve( bpmCnt );
+			for( const auto [_, node] : bpmMap )
+				Arf.beatToMs.push_back(node);
 			Arf.beatToMs[0].init = 0;
 			Arf.beatToMs[0].base = offset;
 
-			const size_t bpmCount = Arf.beatToMs.size();
-			for( size_t i = 1; i < bpmCount; ++i ) {
+			for( size_t i = 1; i < bpmCnt; ++i ) {
 				const auto  lastBpm = Arf.beatToMs[i-1];
 					  auto& thisBpm= Arf.beatToMs[i];
 				thisBpm.base = lastBpm.base + (thisBpm.init - lastBpm.init) * lastBpm.value;
 			}
-		}
 	}
 	Arf.beatIt = Arf.beatToMs.cbegin();
 	return 0;
@@ -637,20 +626,19 @@ int Ar::NewChild(lua_State* L) {
 			.fromDegree = fromDeg, .toDegree = toDeg, .initRadius = radius
 		});
 	}
-	// pWish->cIt = pWish->wishChilds.cbegin();   /* Will be done in OrganizeArf */
-	return 0;
+	return 0;   /* Iterator Update will be done in OrganizeArf */
 }
 
 int Ar::NewHint(lua_State* L) {
 	/* Usage:
-	 * Hint {
+	 * local ok = Hint {
 	 *     Wish = myWish,						-- The last Wish of the Fumen by default
 	 *     Special = false,						-- False by default
 	 *     {1}, 1, 2, 3, 4, ···					-- Times
 	 * }
 	 */
 	if( Arf.wish.empty() )
-		return 0;
+		return lua_pushboolean(L, false), 1;
 	const bool isSpecial = ( lua_getfield(L, 1, "Special"), lua_toboolean(L, -1) );
 	lua_pop(L, 1);
 
@@ -679,7 +667,7 @@ int Ar::NewHint(lua_State* L) {
 				.isSpecial = isSpecial,
 				.relT = beat - minT,
 			});
-	return 0;
+	return lua_pushboolean(L, true), 1;
 }
 
 int Ar::NewEcho(lua_State* L) {
