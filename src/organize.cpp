@@ -556,16 +556,16 @@ int Ar::NewChild(lua_State* L) {
 	switch( lua_getfield(L, 1, "Angle"), lua_type(L, -1) ) {
 		case LUA_TNUMBER:
 			fromDeg = lua_tointeger(L, -1);
-			fromDeg = fromDeg > 32587 ? 32587 : fromDeg < -32587 ? -32587 : fromDeg;
+			fromDeg = fromDeg > 32400 ? 32400 : fromDeg < -32400 ? -32400 : fromDeg;
 			toDeg = fromDeg;
 			break;
 		case LUA_TTABLE: {
 			lua_rawgeti(L, 2, 1);
 			lua_rawgeti(L, 2, 2);   // [2] Angle  [3] fromDeg  [4] toDeg
 			fromDeg = lua_isnumber(L, 3) ? lua_tointeger(L, 3) : 90;
-			fromDeg = fromDeg > 32587 ? 32587 : fromDeg < -32587 ? -32587 : fromDeg;
+			fromDeg = fromDeg > 32400 ? 32400 : fromDeg < -32400 ? -32400 : fromDeg;
 			toDeg = lua_isnumber(L, 4) ? lua_tointeger(L, 4) : 90;
-			toDeg = toDeg > 32587 ? 32587 : toDeg < -32587 ? -32587 : toDeg;
+			toDeg = toDeg > 32400 ? 32400 : toDeg < -32400 ? -32400 : toDeg;
 			lua_pop(L, 2);
 		}
 		default:;
@@ -685,70 +685,54 @@ int Ar::NewEcho(lua_State* L) {
 	switch( hasFromX + hasFromY ) {
 		case 0:   // False, False
 			for( size_t i = 1; i < inputLen; i+=3 ) {
-				const float toT = checkBeat(L, 1, i);
+				float since = fromT, toT = checkBeat(L, 1, i);
 				const float toX = checkX(L, 1, i+1, toT),
 							toY = checkY(L, 1, i+2, toT);
-				if( fromT <= toT )
-					Arf.echo.push_back({
-						.fromX = toX, .fromY = toY, .fromT = fromT, .toX = toX, .toY = toY, .toT = toT,
-						.ease = easeType, .status = status, .ci = cice.aa, .ce = cice.bb, .deltaMs = 0
-					});
-				else
-					Arf.echo.push_back({
-						.fromX = toX, .fromY = toY, .fromT = toT, .toX = toX, .toY = toY, .toT = fromT,
-						.ease = easeType, .status = status, .ci = cice.aa, .ce = cice.bb, .deltaMs = 0
-					});
+				if( float temp; since > toT )
+					temp = since, since = toT, toT = temp;
+				Arf.echo.push_back({
+					.fromX = toX, .fromY = toY, .fromT = since, .toX = toX, .toY = toY, .toT = toT,
+					.ease = easeType, .status = status, .ci = cice.aa, .ce = cice.bb, .deltaMs = 0
+				});
 			}
 			break;
 		case 1:   // True, False
 			for( size_t i = 1; i < inputLen; i+=3 ) {
-				const float toT = checkBeat(L, 1, i);
+				float since = fromT, toT = checkBeat(L, 1, i);
 				const float toX = checkX(L, 1, i+1, toT),
 							toY = checkY(L, 1, i+2, toT);
-				if( fromT <= toT )
-					Arf.echo.push_back({
-						.fromX = fromX, .fromY = toY, .fromT = fromT, .toX = toX, .toY = toY, .toT = toT,
-						.ease = easeType, .status = status, .ci = cice.aa, .ce = cice.bb, .deltaMs = 0
-					});
-				else
-					Arf.echo.push_back({
-						.fromX = fromX, .fromY = toY, .fromT = toT, .toX = toX, .toY = toY, .toT = fromT,
-						.ease = easeType, .status = status, .ci = cice.aa, .ce = cice.bb, .deltaMs = 0
-					});
+				if( float temp; since > toT )
+					temp = since, since = toT, toT = temp;
+				Arf.echo.push_back({
+					.fromX = fromX, .fromY = toY, .fromT = since, .toX = toX, .toY = toY, .toT = toT,
+					.ease = easeType, .status = status, .ci = cice.aa, .ce = cice.bb, .deltaMs = 0
+				});
 			}
 			break;
 		case 2:   // False, True
 			for( size_t i = 1; i < inputLen; i+=3 ) {
-				const float toT = checkBeat(L, 1, i);
+				float since = fromT, toT = checkBeat(L, 1, i);
 				const float toX = checkX(L, 1, i+1, toT),
 							toY = checkY(L, 1, i+2, toT);
-				if( fromT <= toT )
-					Arf.echo.push_back({
-						.fromX = toX, .fromY = fromY, .fromT = fromT, .toX = toX, .toY = toY, .toT = toT,
-						.ease = easeType, .status = status, .ci = cice.aa, .ce = cice.bb, .deltaMs = 0
-					});
-				else
-					Arf.echo.push_back({
-						.fromX = toX, .fromY = fromY, .fromT = toT, .toX = toX, .toY = toY, .toT = fromT,
-						.ease = easeType, .status = status, .ci = cice.aa, .ce = cice.bb, .deltaMs = 0
-					});
+				if( float temp; since > toT )
+					temp = since, since = toT, toT = temp;
+				Arf.echo.push_back({
+					.fromX = toX, .fromY = fromY, .fromT = since, .toX = toX, .toY = toY, .toT = toT,
+					.ease = easeType, .status = status, .ci = cice.aa, .ce = cice.bb, .deltaMs = 0
+				});
 			}
 			break;
 		case 3:   // True, True
 			for( size_t i = 1; i < inputLen; i+=3 ) {
-				const float toT = checkBeat(L, 1, i);
+				float since = fromT, toT = checkBeat(L, 1, i);
 				const float toX = checkX(L, 1, i+1, toT),
 							toY = checkY(L, 1, i+2, toT);
-				if( fromT <= toT )
-					Arf.echo.push_back({
-						.fromX = fromX, .fromY = fromY, .fromT = fromT, .toX = toX, .toY = toY, .toT = toT,
-						.ease = easeType, .status = status, .ci = cice.aa, .ce = cice.bb, .deltaMs = 0
-					});
-				else
-					Arf.echo.push_back({
-						.fromX = fromX, .fromY = fromY, .fromT = toT, .toX = toX, .toY = toY, .toT = fromT,
-						.ease = easeType, .status = status, .ci = cice.aa, .ce = cice.bb, .deltaMs = 0
-					});
+				if( float temp; since > toT )
+					temp = since, since = toT, toT = temp;
+				Arf.echo.push_back({
+					.fromX = fromX, .fromY = fromY, .fromT = since, .toX = toX, .toY = toY, .toT = toT,
+					.ease = easeType, .status = status, .ci = cice.aa, .ce = cice.bb, .deltaMs = 0
+				});
 			}
 		default:;
 	}
@@ -777,7 +761,7 @@ int Ar::MirrorLR(lua_State*) noexcept {
 			child.toDegree = 180 - child.toDegree;
 	}
 
-	sz = Arf.hint.size();
+	sz = Arf.echo.size();
 	for( size_t i = Arf.verseEidx; i < sz; ++i ) {
 		auto& echo = Arf.echo[i];
 			  echo.fromX = -echo.fromX, echo.toX = -echo.toX;
@@ -837,7 +821,7 @@ int Ar::Move(lua_State* L) {
 		}
 		for( size_t i = Arf.verseEidx, es = Arf.echo.size(); i < es; ++i ) {
 			auto& echo = Arf.echo[i];
-			echo.fromT += beatDelta, echo.toT += beatDelta;
+			echo.toT += beatDelta, echo.fromT += echo.fromT == -0xADD8E6  ?  0 : beatDelta;
 		}
 	}
 	return 0;
@@ -921,14 +905,7 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 	 * -- Remove Wishes with less than 2 Nodes; Max 65535 Nodes & 65535 Childs.
 	 * -- Max 131071 Wishes; Sort them & Fix Iterators.
 	 */
-	struct ChildArgs {
-		Ar32(
-			int16_t		fromDegree, toDegree;
-			float		initRadius;
-		)
-	};
 	std::map< double, std::map<uint64_t, WishChild> > childMap;
-
 	for( auto& wish : Arf.wish ) {
 		int16_t delCnt = -1;
 		for( auto& node : wish.nodes )
@@ -948,7 +925,10 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 		for( const auto child : wish.wishChilds ) {
 			const double dt = beatToDt( child.dt, wish.deltaGroup );
 				  auto&  inner = childMap.contains(dt) ? childMap[dt] : childMap[dt]={};
-			const ChildArgs a = { child.fromDegree, child.toDegree, child.initRadius };
+			const struct {
+				Ar32( int16_t fromDegree, toDegree;
+					  float	  initRadius; )
+			} a = { child.fromDegree, child.toDegree, child.initRadius };
 			inner[ a.whole ] = { dt, a.fromDegree, a.toDegree, a.initRadius };
 		}
 		wish.wishChilds.clear();
@@ -975,6 +955,7 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 	std::sort( Arf.wish.begin(), Arf.wish.end(), PRED_WISH );
 	if( Arf.wish.size() > 131071 )
 		Arf.wish.resize(131071);
+
 
 	/* Index, Metadata
 	 * -- Max [Before] 1048575ms, Max [HintCnt+EchoCnt] 32575.
