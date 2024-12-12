@@ -51,7 +51,7 @@ namespace bitsery {
 	)
 	Inout( Wish,
 		   inout.container(its.nodes, 65536);			inout.container(its.wishChilds, 65536);
-		   inout.ext(its.deltaGroup, CV);
+		   inout.ext(its.whole, CV);
 	)
 	Inout( Fumen,
 		   inout.container(its.idxGroups, 2048);		inout.container(its.deltaGroups, 65536);

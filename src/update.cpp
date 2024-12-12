@@ -183,10 +183,11 @@ int Ar::UpdateArf(lua_State* L) {
 		while( currentWish.pIt != lastNodeIt ) {
 			const auto nextNodeIt = currentWish.pIt+1;
 			if( Arf.msTime < nextNodeIt->t ) {
-				const float existMs = Arf.msTime - currentWish.nodes[0].t;
+				float tint = Arf.msTime - currentWish.nodes[0].t;
+					  tint = tint >= 151 ? 1.0f : tint / 151.0f ;
 				wgoUsed += renderWish( L,
 					nodePos = InterpolatePoint( *currentWish.pIt, *nextNodeIt, Arf.msTime ),
-					{ .a = 0.01f, .b = existMs >= 151 ? 1.0f : existMs / 151.0f } , wgoUsed );
+					{ .a = 0.01f, .b = currentWish.isSpecial ? -tint : tint } , wgoUsed );
 				break;
 			}
 			++currentWish.pIt;
@@ -364,7 +365,6 @@ int Ar::UpdateArf(lua_State* L) {
 					case false: default:
 						echoTint -> setX(H_HIT_R).setY(H_HIT_R).setZ(H_HIT_R).setW(life);
 				}
-
 				dmGameObject::SetScale( echoGo, 0.637f + 0.437f * (life = 1.0f - life) * life );
 				dmGameObject::SetPosition( echoGo, p3(egoPos.a, egoPos.b, 0.02f) );
 				ehgoUsed += renderEchoHelper(L, currentEcho, ehgoUsed);
@@ -378,7 +378,6 @@ int Ar::UpdateArf(lua_State* L) {
 				float color = 0.437f - frameOffset *  0.00037f;
 				echoTint -> setX(color).setY(color *= currentEcho.status==SPECIAL_LOST ? 0.51f : 1)
 									   .setZ(color).setW(1.0f);
-
 				dmGameObject::SetScale( echoGo, 0.637f );
 				dmGameObject::SetPosition( echoGo, p3(egoPos.a, egoPos.b, 0.02f) );
 				ehgoUsed += renderEchoHelper(L, currentEcho, ehgoUsed);
@@ -398,6 +397,7 @@ int Ar::UpdateArf(lua_State* L) {
 			default:;
 		}
 	}
+
 	return lua_pushinteger(L, wgoUsed),  lua_pushinteger(L, hgoUsed), lua_pushinteger(L, egoUsed),
 		   lua_pushinteger(L, ehgoUsed), lua_pushinteger(L, agoUsed), lua_pushboolean(L, hitSound.hint),
 																	  lua_pushboolean(L, hitSound.echo), 7;

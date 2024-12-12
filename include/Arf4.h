@@ -80,7 +80,7 @@ namespace Arf4 {
 
 	// Fumen
 	struct Wish {
-		uint64_t					deltaGroup;
+		Ar64(uint64_t				isSpecial:1, deltaGroup:63; )
 		std::vector<WishChild>		wishChilds;
 		std::vector<Point>			nodes;
 		VCIT(WishChild)				cIt;
@@ -97,10 +97,10 @@ namespace Arf4 {
 			uint64_t				wgoRequired:10 = 1023, hgoRequired:9, egoRequired:10;
 		)
 		//------------------------//
-		uint64_t					msTime:20;
-		uint64_t					hHit:15, eHit:15, early:15, late:15, lost:15, spJudged:9;
-		uint64_t					daymode:1, judgeRange:7 = 37;
 		int64_t						minDt:8, maxDt:8;
+		uint64_t					msTime:20, daymode:1, judgeRange:7 = 37;
+		uint64_t					hHit:15, spJudged:5, eHit:15, early:15, late:15,
+									lost:15 /* 4bits Padding */;
 		/*------------------------*/
 		float						objectSizeX = 360, objectSizeY = 360;
 		float						xScale = 1, yScale = 1, xDelta, yDelta, rotSin, rotCos = 1;
