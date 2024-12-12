@@ -83,6 +83,7 @@ namespace Arf4 {
 		Ar64(uint64_t				isSpecial:1, deltaGroup:63; )
 		std::vector<WishChild>		wishChilds;
 		std::vector<Point>			nodes;
+		//------------------------//
 		VCIT(WishChild)				cIt;
 		VCIT(Point)					pIt;
 	};
@@ -94,7 +95,7 @@ namespace Arf4 {
 		std::vector<Echo>			echo;
 		Ar64(
 			uint64_t				before:20, objectCount:15;
-			uint64_t				wgoRequired:10 = 1023, hgoRequired:9, egoRequired:10;
+			uint64_t				wgoRequired:10, hgoRequired:9, egoRequired:10;
 		)
 		//------------------------//
 		int64_t						minDt:8, maxDt:8;
@@ -121,6 +122,8 @@ namespace Arf4 {
 		#endif
 	};
 }
+extern  Arf4::Fumen  Arf;
+extern  int8_t		 InputDelta;
 
 namespace Ar {
 	using namespace Arf4;
@@ -168,6 +171,3 @@ namespace Ar {
 	 int  PartialEase(lua_State* L);
 	 int  Ease(lua_State* L);
 }
-
-extern  Arf4::Fumen  Arf;
-extern  int8_t		 InputDelta;

@@ -1089,7 +1089,7 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 				maxStepRequired = stepRequired > maxStepRequired ? stepRequired : maxStepRequired;
 			groupWgoRequired += (maxStepRequired < 2 ? 1 : maxStepRequired);
 		}
-		if( groupWgoRequired > 1023 )				return lua_pushboolean(L, false), 1;
+		if( groupWgoRequired > 1023 )				Arf.wgoRequired = 1023;
 		if( groupWgoRequired > Arf.wgoRequired )	Arf.wgoRequired = groupWgoRequired;
 	}
 
