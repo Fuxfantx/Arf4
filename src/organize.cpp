@@ -374,7 +374,7 @@ int Ar::NewDeltaGroup(lua_State* L) noexcept {
 	 *     ···
 	 * }
 	 */
-	if( Arf.deltaGroups.size() > 65535  ||  !lua_istable(L, 1) )
+	if( lua_gettop(L) == 0  ||  !lua_istable(L, 1)  ||  Arf.deltaGroups.size() > 65535 )
 		return lua_pushinteger(L, 0), 1;
 	deltaMap.clear();
 
@@ -484,7 +484,7 @@ int Ar::NewHelper(lua_State* L) noexcept {
 	 *     ···
 	 * }
 	 */
-	if( !lua_istable(L, 1) )
+	if( lua_gettop(L) == 0  ||  !lua_istable(L, 1) )
 		return lua_pushnil(L), 1;
 
 	nodeMap.clear();
@@ -548,11 +548,8 @@ int Ar::NewChild(lua_State* L) {
 	const bool isSpecial = ( lua_getfield(L, 1, "Special"), lua_toboolean(L, -1) );
 	lua_pop(L, 1);
 
-	float radius = 7.0f;
-	if( lua_getfield(L, 1, "Radius"), lua_isnumber(L, -1) ) {
-		radius = lua_tonumber(L, -1);
-		radius = radius < 0 ? 7 : radius > 16 ? 7 : radius;
-	}
+	float radius = ( lua_getfield(L, 1, "Radius"), lua_tonumber(L, -1) );
+		  radius = radius > 0 ? radius : 7.0f;
 	lua_pop(L, 1);
 
 	int16_t fromDeg = 90, toDeg = 90;
@@ -594,61 +591,60 @@ int Ar::NewChild(lua_State* L) {
 	pWish->wishChilds.reserve(beatCnt);
 	Arf.hint.reserve(beatCnt);
 
-	for( size_t i = 1 ; i <= beatCnt; ++i ) {
-		const float beat = checkBeat(L, 1, i);
-		if( beat >= minT  &&  beat <= maxT )
-			Arf.hint.push_back( {
-				.pWish = reinterpret_cast<uint64_t>(pWish),
-				.isSpecial = isSpecial,
-				.relT = beat - minT,
+	for( size_t i = 1 ; i <= beatCnt; ++i )
+		if( const float beat = checkBeat(L, 1, i);  beat >= minT ) {
+			if( beat <= maxT )
+				Arf.hint.push_back( {
+					.pWish = reinterpret_cast<uint64_t>(pWish),
+					.isSpecial = isSpecial,
+					.relT = beat - minT,
+				});
+			pWish->wishChilds.push_back({
+				.dt = beat,   // A Interval Value
+				.fromDegree = fromDeg, .toDegree = toDeg, .initRadius = radius
 			});
-		pWish->wishChilds.push_back({
-			.dt = beat,   // A Interval Value
-			.fromDegree = fromDeg, .toDegree = toDeg, .initRadius = radius
-		});
-	}
+		}
 	return 0;   /* Iterator Update will be done in OrganizeArf */
 }
 
 int Ar::NewHint(lua_State* L) {
 	/* Usage:
-	 * local ok = Hint {
+	 * Hint {
 	 *     Wish = myWish,						-- The last Wish of the Fumen by default
 	 *     Special = false,						-- False by default
 	 *     {1}, 1, 2, 3, 4, ···					-- Times
 	 * }
 	 */
-	if( Arf.wish.empty() )
-		return lua_pushboolean(L, false), 1;
-	const bool isSpecial = ( lua_getfield(L, 1, "Special"), lua_toboolean(L, -1) );
-	lua_pop(L, 1);
-
-	Wish* pWish;
-	if( lua_getfield(L, 1, "Wish"), lua_isuserdata(L, -1) ) {
-		if( lua_getmetatable(L, -1), lua_rawgeti(L, -1, 0xADD8E6), lua_toboolean(L, -1) )
-			// [2] Wish  [3] Wish Metatable  [4] isWish
-			pWish = (Wish*)lua_touserdata(L, 2);
-		else
-			pWish = &Arf.wish.back();
-		lua_pop(L, 3);
-	}
-	else {
-		pWish = &Arf.wish.back();
+	if( Arf.wish.size() ) {
+		const bool isSpecial = ( lua_getfield(L, 1, "Special"), lua_toboolean(L, -1) );
 		lua_pop(L, 1);
+
+		Wish* pWish;
+		if( lua_getfield(L, 1, "Wish"), lua_isuserdata(L, -1) ) {
+			if( lua_getmetatable(L,-1), lua_rawgeti(L, -1, 0xADD8E6), lua_toboolean(L,-1) )
+				pWish = (Wish*)lua_touserdata(L, 2);   // [2] Wish  [3] Wish Metatable  [4] isWish
+			else
+				pWish = &Arf.wish.back();
+			lua_pop(L, 3);
+		}
+		else {
+			pWish = &Arf.wish.back();
+			lua_pop(L, 1);
+		}
+		const auto minT = pWish->nodes[0].t, maxT = pWish->nodes.back().t;
+
+		const size_t beatCnt = lua_objlen(L, 1);
+		Arf.hint.reserve(beatCnt);
+
+		for( size_t i = 1; i <= beatCnt; ++i )
+			if( const float beat = checkBeat(L, 1, i);  beat >= minT  &&  beat <= maxT )
+				Arf.hint.push_back( {
+					.pWish = reinterpret_cast<uint64_t>(pWish),
+					.isSpecial = isSpecial,
+					.relT = beat - minT,
+				});
 	}
-	const auto minT = pWish->nodes[0].t, maxT = pWish->nodes.back().t;
-
-	const size_t beatCnt = lua_objlen(L, 1);
-	Arf.hint.reserve(beatCnt);
-
-	for( size_t i = 1; i <= beatCnt; ++i )
-		if( const float beat = checkBeat(L, 1, i);  beat >= minT  &&  beat <= maxT )
-			Arf.hint.push_back( {
-				.pWish = reinterpret_cast<uint64_t>(pWish),
-				.isSpecial = isSpecial,
-				.relT = beat - minT,
-			});
-	return lua_pushboolean(L, true), 1;
+	return 0;
 }
 
 int Ar::NewEcho(lua_State* L) {
