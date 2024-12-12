@@ -920,7 +920,7 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 	/* Hint
 	 * -- Re-construct them, use a map to sort & unrepeat them.
 	 * -- HintCnt + EchoCnt < 32768.
-	 * -- Max 32 Special Hints.
+	 * -- Max 31 Special Hints.
 	 */
 	std::map< float, std::map<int64_t, Hint> > validHints;
 	for( const auto hintProto : Arf.hint ) {
@@ -939,13 +939,10 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 
 	Arf.hint.clear();
 	for( const auto& outer : validHints )
-		for( auto [_, hint] : outer.second ) {
-			if( Arf.spJudged == 31 )
-				hint.status = (uint8_t)AUTO;
-			else
-				Arf.spJudged += hint.status == SPECIAL_AUTO;
+		for( auto [_, hint] : outer.second )
+			hint.status = Arf.spJudged == 31 ? hint.status : AUTO,
+			Arf.spJudged += hint.status == SPECIAL_AUTO,
 			Arf.hint.push_back(hint);
-		}
 	Arf.spJudged = 0;
 
 
@@ -975,7 +972,7 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 			wish.nodes.erase( initIt, initIt + delCnt );
 		}
 
-		while( !wish.nodes.empty()  &&  (wish.nodes.size() > 65535  ||  wish.nodes.back().t > 1048575) )
+		while( !wish.nodes.empty()  &&  (wish.nodes.back().t > 1048575  ||  wish.nodes.size() > 65535) )
 			wish.nodes.pop_back();
 		if( wish.nodes.empty() )
 			continue;
@@ -1028,8 +1025,6 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 		const float fms = w.nodes[0].t, lms = w.nodes.back().t;
 
 		const uint16_t lidx = (uint32_t)lms >> 9;
-		if( lidx > 2047 )
-			return lua_pushboolean(L, false), 1;
 		if( lidx >= Arf.idxGroups.size() )
 			Arf.idxGroups.resize( lidx+1 );
 		if( lms > Arf.before )
@@ -1097,6 +1092,7 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 		if( groupWgoRequired > 1023 )				return lua_pushboolean(L, false), 1;
 		if( groupWgoRequired > Arf.wgoRequired )	Arf.wgoRequired = groupWgoRequired;
 	}
+
 	return lua_pushnumber(L, Arf.before),		lua_pushnumber(L, Arf.objectCount),
 		   lua_pushnumber(L, Arf.wgoRequired),	lua_pushnumber(L, Arf.hgoRequired),
 		   lua_pushnumber(L, Arf.egoRequired),	5;
