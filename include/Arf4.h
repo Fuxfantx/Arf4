@@ -83,7 +83,6 @@ namespace Arf4 {
 		Ar64(uint64_t				isSpecial:1, deltaGroup:63; )
 		std::vector<WishChild>		wishChilds;
 		std::vector<Point>			nodes;
-		//------------------------//
 		VCIT(WishChild)				cIt;
 		VCIT(Point)					pIt;
 	};
@@ -130,11 +129,12 @@ namespace Ar {
 
 	/* Build */
 	 int  NewBuild(lua_State* L);
-	 int  NewDeltaGroup(lua_State* L);
-	 int  NewVerse(lua_State* L);
-	 int  MirrorLR(lua_State* L);
-	 int  MirrorUD(lua_State* L);
-	 int  NewHelper(lua_State* L);
+	 int  NewDeltaGroup(lua_State* L) noexcept;
+	 int  DeltaTone(lua_State* L);
+	 int  NewVerse(lua_State*) noexcept;
+	 int  MirrorLR(lua_State*) noexcept;
+	 int  MirrorUD(lua_State*) noexcept;
+	 int  NewHelper(lua_State* L) noexcept;
 	 int  NewChild(lua_State* L);
 	 int  NewWish(lua_State* L);
 	 int  NewHint(lua_State* L);
@@ -150,7 +150,7 @@ namespace Ar {
 	/* Operation */
 	 int  LoadArf(lua_State* L);
 	 int  ExportArf(lua_State* L);
-	 int  OrganizeArf(lua_State* L);
+	 int  OrganizeArf(lua_State* L) noexcept;
 	 int  UpdateArf(lua_State* L);
 	 int  JudgeArf(lua_State* L);
 

@@ -15,6 +15,7 @@ static const luaL_reg Arf4Lib[] = {
 	{"ExportArf", Ar::ExportArf},
 	{"OrganizeArf", Ar::OrganizeArf},
 	{"NewDeltaGroup", Ar::NewDeltaGroup},
+	{"DeltaTone", Ar::DeltaTone},
 	{"NewVerse", Ar::NewVerse},
 	{"NewHelper", Ar::NewHelper},
 	{"NewChild", Ar::NewChild},
@@ -45,8 +46,7 @@ static const luaL_reg Arf4Lib[] = {
 static dmExtension::Result Arf4Init(dmExtension::Params* p) {
 	#ifdef DM_PLATFFORM_ANDROID
 		JNIEnv* pEnv;
-		pVm = dmGraphics::GetNativeAndroidJavaVM();
-		pVm-> AttachCurrentThread(&pEnv, NULL);
+		pVm = dmGraphics::GetNativeAndroidJavaVM(), pVm->AttachCurrentThread(&pEnv, NULL);
 		hapticClass = (jclass)pEnv->NewGlobalRef(
 			pEnv->CallObjectMethod(
 				/* Object */ pEnv->CallObjectMethod(

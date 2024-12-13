@@ -18,7 +18,7 @@ struct PseudoContext {
 namespace bitsery {
 	static constexpr auto PY = ext::ValueRange{-8100.0f, 8100.0f, 1.0f/4};			// [16] Pos Y
 	static constexpr auto PX = ext::ValueRange{-16200.0f, 16200.0f, 1.0f/4};		// [17] Pos X
-	static constexpr auto MS = ext::ValueRange{0.0f, 1048575.0f, 1.0f};			// [20] Time(ms)
+	static constexpr auto MS = ext::ValueRange{-1048575.0f, 1048575.0f, 1.0f};		// [21] Time(ms)
 	static constexpr auto DR = ext::ValueRange{-16.0f, 16.0f, 1.0f/131072};		// [21] Dt Ratio
 	static constexpr auto DT = ext::ValueRange{0.0, (double)0xFFFFFF, 1.0/131072};	// [41] Dt Base
 	static constexpr auto CV = ext::CompactValueAsObject{};

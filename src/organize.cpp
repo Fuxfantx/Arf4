@@ -368,10 +368,10 @@ int Ar::DeltaTone(lua_State* L) {
 	 * local delta_tone = DeltaTone( {1, 1/16}, {2, 5/32} )
 	 */
 	float lTone = 0, rTone = 0;
-	if( lua_type(L, 1) == LUA_TTABLE )   // [-1] additionalTone  [-2] bar
+	if( lua_type(L, 1) == LUA_TTABLE )
 		lua_rawgeti(L, 1, 1),
 		lua_rawgeti(L, 1, 2),
-		lTone = lua_tonumber(L, -1),
+		lTone = lua_tonumber(L, -1),   // [-1] additionalTone  [-2] bar
 		lTone = barToTone( lua_tonumber(L, -2) ) + (lTone<0 ? 0 : lTone<1 ? lTone : lTone*0.0625f);
 	else
 		lTone = lua_tonumber(L, 1),
@@ -383,7 +383,7 @@ int Ar::DeltaTone(lua_State* L) {
 		rTone = lua_tonumber(L, -1),
 		rTone = barToTone( lua_tonumber(L, -2) ) + (rTone<0 ? 0 : rTone<1 ? rTone : rTone*0.0625f);
 	else
-		rTone = lua_tonumber(L, 1),
+		rTone = lua_tonumber(L, 2),
 		rTone = Arf.sinceTone + (rTone<0 ? 0 : rTone<1 ? rTone : rTone*0.0625f);
 	return lua_pushnumber(L, rTone - lTone), 1;
 }
@@ -952,9 +952,6 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 			wish.wishChilds.resize(65535);
 	}
 
-	constexpr auto NODE_NOT_ENOUGH_WISH = [](const Wish& w) {
-		return w.nodes.size() < 2;
-	};
 	constexpr auto PRED_WISH = [](const Wish& l, const Wish& r) {
 		const auto lFirstNode = l.nodes[0], lLastNode = l.nodes.back(),
 				   rFirstNode = r.nodes[0], rLastNode = r.nodes.back();
@@ -962,7 +959,7 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 		if( lLastNode.t != rLastNode.t )		return lLastNode.t < rLastNode.t;
 		return (lLastNode.t - lFirstNode.t) <= (rLastNode.t - lFirstNode.t);
 	};
-	std::erase_if( Arf.wish, NODE_NOT_ENOUGH_WISH );
+	std::erase_if(Arf.wish, [](const Wish& w) { return w.nodes.size() < 2; });
 	std::sort( Arf.wish.begin(), Arf.wish.end(), PRED_WISH );
 	if( Arf.wish.size() > 131071 )
 		Arf.wish.resize(131071);
@@ -974,8 +971,7 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 	for( auto& g : Arf.deltaGroups )
 		g.it = g.nodes.cbegin();
 	for( auto& w : Arf.wish )
-		w.pIt = w.nodes.cbegin(),
-		w.cIt = w.wishChilds.cbegin();
+		w.pIt = w.nodes.cbegin(), w.cIt = w.wishChilds.cbegin();
 	Arf.idxGroups.reserve(2047);
 
 	size_t objCount = Arf.hint.size();
@@ -990,6 +986,7 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 			Arf.idxGroups[i].wIdx.push_back(wi);
 		Arf.before = lms > Arf.before ? lms : Arf.before;
 	}
+
 	for( size_t hi = 0; hi < objCount; ++hi ) {
 		const auto& h = Arf.hint[hi];
 		const int32_t fms = (int32_t)h.ms - 510, lms = h.ms + 470;
@@ -1001,6 +998,7 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 			Arf.idxGroups[i].hIdx.push_back(hi);
 		Arf.before = lms > Arf.before ? lms : Arf.before;
 	}
+
 	for( size_t ei = 0, eSize = Arf.echo.size(); ei < eSize; ++ei ) {
 		const auto& e = Arf.echo[ei];
 		const float lms = e.toT + 470;
