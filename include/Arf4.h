@@ -130,7 +130,7 @@ namespace Ar {
 	/* Build */
 	 int  NewBuild(lua_State* L);
 	 int  NewDeltaGroup(lua_State* L) noexcept;
-	 int  DeltaTone(lua_State* L);
+	 int  DeltaTone(lua_State* L) noexcept;
 	 int  NewVerse(lua_State*) noexcept;
 	 int  MirrorLR(lua_State*) noexcept;
 	 int  MirrorUD(lua_State*) noexcept;

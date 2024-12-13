@@ -363,7 +363,7 @@ int Ar::NewBuild(lua_State* L) {
 	return 0;
 }
 
-int Ar::DeltaTone(lua_State* L) {
+int Ar::DeltaTone(lua_State* L) noexcept {
 	/* Usage:
 	 * local delta_tone = DeltaTone( {1, 1/16}, {2, 5/32} )
 	 */
@@ -568,67 +568,64 @@ int Ar::NewChild(lua_State* L) {
 	 *     {1, 1}, 2, 3, 4, ···		-- Times
 	 * }
 	 */
-	if( Arf.wish.empty() )
-		return 0;
-	const bool isSpecial = ( lua_getfield(L, 1, "Special"), lua_toboolean(L, -1) );
-	lua_pop(L, 1);
-
-	float radius = ( lua_getfield(L, 1, "Radius"), lua_tonumber(L, -1) );
-		  radius = radius > 0 ? radius : 7.0f;
-	lua_pop(L, 1);
-
-	int16_t fromDeg = 90, toDeg = 90;
-	switch( lua_getfield(L, 1, "Angle"), lua_type(L, -1) ) {
-		case LUA_TNUMBER:
-			fromDeg = lua_tointeger(L, -1);
-			fromDeg = fromDeg > 32400 ? 32400 : fromDeg < -32400 ? -32400 : fromDeg;
-			toDeg = fromDeg;
-			break;
-		case LUA_TTABLE: {
-			lua_rawgeti(L, 2, 1);
-			lua_rawgeti(L, 2, 2);   // [2] Angle  [3] fromDeg  [4] toDeg
-			fromDeg = lua_isnumber(L, 3) ? lua_tointeger(L, 3) : 90;
-			fromDeg = fromDeg > 32400 ? 32400 : fromDeg < -32400 ? -32400 : fromDeg;
-			toDeg = lua_isnumber(L, 4) ? lua_tointeger(L, 4) : 90;
-			toDeg = toDeg > 32400 ? 32400 : toDeg < -32400 ? -32400 : toDeg;
-			lua_pop(L, 2);
-		}
-		default:;
-	}
-	lua_pop(L, 1);
-
-	Wish* pWish;
-	if( lua_getfield(L, 1, "Wish"), lua_isuserdata(L, -1) ) {
-		if( lua_getmetatable(L, -1), lua_rawgeti(L, -1, 0xADD8E6), lua_toboolean(L, -1) )
-			// [2] Wish  [3] Wish Metatable  [4] isWish
-			pWish = (Wish*)lua_touserdata(L, 2);
-		else
-			pWish = &Arf.wish.back();
-		lua_pop(L, 3);
-	}
-	else {
-		pWish = &Arf.wish.back();
+	if( !Arf.wish.empty() ) {
+		const bool isSpecial = ( lua_getfield(L, 1, "Special"), lua_toboolean(L, -1) );
 		lua_pop(L, 1);
-	}
-	const auto minT = pWish->nodes[0].t, maxT = pWish->nodes.back().t;
 
-	const size_t beatCnt = lua_objlen(L, 1);
-	pWish->wishChilds.reserve(beatCnt);
-	Arf.hint.reserve(beatCnt);
+		float radius = ( lua_getfield(L, 1, "Radius"), lua_tonumber(L, -1) );
+			  radius = radius > 0 ? radius : 7.0f;
+		lua_pop(L, 1);
 
-	for( size_t i = 1 ; i <= beatCnt; ++i )
-		if( const float beat = checkBeat(L, 1, i);  beat >= minT ) {
-			if( beat <= maxT )
-				Arf.hint.push_back( {
-					.pWish = reinterpret_cast<uint64_t>(pWish),
-					.isSpecial = isSpecial,
-					.relT = beat - minT,
-				});
-			pWish->wishChilds.push_back({
-				.dt = beat,   // A Interval Value
-				.fromDegree = fromDeg, .toDegree = toDeg, .initRadius = radius
-			});
+		int16_t fromDeg = 90, toDeg = 90;
+		switch( lua_getfield(L, 1, "Angle"), lua_type(L, -1) ) {
+			case LUA_TNUMBER:
+				fromDeg = lua_tointeger(L, -1);
+				fromDeg = fromDeg > 32400 ? 32400 : fromDeg < -32400 ? -32400 : fromDeg;
+				toDeg = fromDeg;
+				break;
+			case LUA_TTABLE:
+				lua_rawgeti(L, 2, 1);
+				lua_rawgeti(L, 2, 2);   // [2] Angle  [3] fromDeg  [4] toDeg
+				fromDeg = lua_isnumber(L, 3) ? lua_tointeger(L, 3) : 90;
+				fromDeg = fromDeg > 32400 ? 32400 : fromDeg < -32400 ? -32400 : fromDeg;
+				toDeg = lua_isnumber(L, 4) ? lua_tointeger(L, 4) : 90;
+				toDeg = toDeg > 32400 ? 32400 : toDeg < -32400 ? -32400 : toDeg;
+				lua_pop(L, 2);
+			default:;
 		}
+		lua_pop(L, 1);
+
+		Wish* pWish;
+		if( lua_getfield(L, 1, "Wish"), lua_isuserdata(L, -1) ) {
+			if( lua_getmetatable(L,-1), lua_rawgeti(L,-1, 0xADD8E6), lua_toboolean(L,-1) )
+				pWish = (Wish*)lua_touserdata(L, 2);   // [2] Wish  [3] Wish Metatable  [4] isWish
+			else
+				pWish = &Arf.wish.back();
+			lua_pop(L, 3);
+		}
+		else
+			pWish = &Arf.wish.back(),
+			lua_pop(L, 1);
+		const auto minT = pWish->nodes[0].t, maxT = pWish->nodes.back().t;
+
+		const size_t beatCnt = lua_objlen(L, 1);
+		pWish->wishChilds.reserve(beatCnt);
+		Arf.hint.reserve(beatCnt);
+
+		for( size_t i = 1 ; i <= beatCnt; ++i )
+			if( const float beat = checkBeat(L, 1, i);  beat >= minT ) {
+				pWish->wishChilds.push_back({
+					.dt = beat,   // A Interval Value
+					.fromDegree = fromDeg, .toDegree = toDeg, .initRadius = radius
+				});
+				if( beat <= maxT )
+					Arf.hint.push_back( {
+						.pWish = reinterpret_cast<uint64_t>(pWish),
+						.isSpecial = isSpecial,
+						.relT = beat - minT,
+					});
+			}
+	}
 	return 0;   /* Iterator Update will be done in OrganizeArf */
 }
 
@@ -652,10 +649,9 @@ int Ar::NewHint(lua_State* L) {
 				pWish = &Arf.wish.back();
 			lua_pop(L, 3);
 		}
-		else {
-			pWish = &Arf.wish.back();
+		else
+			pWish = &Arf.wish.back(),
 			lua_pop(L, 1);
-		}
 		const auto minT = pWish->nodes[0].t, maxT = pWish->nodes.back().t;
 
 		const size_t beatCnt = lua_objlen(L, 1);
@@ -978,7 +974,6 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 	for( size_t wi = 0, wSize = Arf.wish.size(); wi < wSize; ++wi ) {
 		const auto& w = Arf.wish[wi];
 		const float fms = w.nodes[0].t, lms = w.nodes.back().t;
-
 		const uint16_t lidx = (uint32_t)lms >> 9;
 		if( lidx >= Arf.idxGroups.size() )
 			Arf.idxGroups.resize( lidx+1 );
@@ -990,7 +985,6 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 	for( size_t hi = 0; hi < objCount; ++hi ) {
 		const auto& h = Arf.hint[hi];
 		const int32_t fms = (int32_t)h.ms - 510, lms = h.ms + 470;
-
 		const uint16_t lidx = lms >> 9;
 		if( lidx >= Arf.idxGroups.size() )
 			Arf.idxGroups.resize( lidx+1 );
@@ -1002,13 +996,12 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 	for( size_t ei = 0, eSize = Arf.echo.size(); ei < eSize; ++ei ) {
 		const auto& e = Arf.echo[ei];
 		const float lms = e.toT + 470;
-
 		const uint16_t lidx = (uint32_t)lms >> 9;
-		if( lidx >= Arf.idxGroups.size() )
-			Arf.idxGroups.resize( lidx+1 );
-
 		float fms = e.toT - 510;
 			  fms = fms > e.fromT ? e.fromT : fms;
+
+		if( lidx >= Arf.idxGroups.size() )
+			Arf.idxGroups.resize( lidx+1 );
 		for( uint16_t i = fms < 0 ? 0 : (uint32_t)fms >> 9;  i <= lidx;  ++i )
 			Arf.idxGroups[i].eIdx.push_back(ei);
 		Arf.before = lms > Arf.before ? lms : Arf.before;
@@ -1040,7 +1033,6 @@ int Ar::OrganizeArf(lua_State* L) noexcept {
 		if( groupWgoRequired > Arf.wgoRequired )	Arf.wgoRequired = groupWgoRequired;
 		if( groupWgoRequired > 1023 )				Arf.wgoRequired = 1023;
 	}
-
 	return lua_pushnumber(L, Arf.before),		lua_pushnumber(L, Arf.objectCount),
 		   lua_pushnumber(L, Arf.wgoRequired),	lua_pushnumber(L, Arf.hgoRequired),
 		   lua_pushnumber(L, Arf.egoRequired),	5;
