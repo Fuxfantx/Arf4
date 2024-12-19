@@ -3,8 +3,8 @@
 using namespace Ar;
 
 /* Tint Constants & Typedefs */
-static constexpr auto H_EARLY_R = 0.275f, H_EARLY_G = 0.495f, H_EARLY_B = 0.5603125f;
-static constexpr auto H_LATE_R = 0.5603125f, H_LATE_G = 0.3403125f, H_LATE_B = 0.275f;
+static constexpr auto H_EARLY_R = 0.37675f, H_EARLY_G = 0.67815f, H_EARLY_B = 0.767628125f;
+static constexpr auto H_LATE_R = 0.767628125f, H_LATE_G = 0.466228125f, H_LATE_B = 0.37675f;
 static constexpr auto H_HIT_R = 0.88f, H_HIT_G = 0.7528125f, H_HIT_B = 0.5534375f;
 
 static constexpr auto A_EARLY_R = 0.3125f, A_EARLY_G = 0.5625f, A_EARLY_B = 0.63671875f;
