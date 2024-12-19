@@ -286,7 +286,7 @@ int Ar::UpdateArf(lua_State* L) {
 			case LOST:
 			case SPECIAL_LOST: {
 				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, -frameOffset * 0.001f) );
-				float color =  0.637f - frameOffset * 0.00037f;		hintTint -> setX(color);
+				float color =  0.573f - frameOffset * 0.00037f;		hintTint -> setX(color);
 					  color *= 0.51f;								hintTint -> setY(color).setZ(color);
 				hgoUsed++;
 			}	break;
@@ -375,7 +375,7 @@ int Ar::UpdateArf(lua_State* L) {
 				break;
 			case LOST:
 			case SPECIAL_LOST: {
-				float color = 0.637f - frameOffset *  0.00037f;
+				float color = 0.573f - frameOffset *  0.00037f;
 				echoTint -> setX(color).setY(color *= currentEcho.status==SPECIAL_LOST ? 0.51f : 1)
 									   .setZ(color).setW(1.0f);
 				dmGameObject::SetScale( echoGo, 0.637f );
