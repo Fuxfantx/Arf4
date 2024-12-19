@@ -99,7 +99,7 @@ namespace Arf4 {
 		//------------------------//
 		int64_t						minDt:8, maxDt:8;
 		uint64_t					msTime:20, daymode:1, judgeRange:7 = 37;
-		uint64_t					hHit:15, spJudged:5, eHit:15, early:15, late:15, lost:15 /* 4 */ ;
+		uint64_t					hHit:15, spJudged:5, eHit:15, early:15, late:15, lost:15 /*4*/ ;
 		/*------------------------*/
 		float						objectSizeX = 360, objectSizeY = 360;
 		float						xScale = 1, yScale = 1, xDelta, yDelta, rotSin, rotCos = 1;

@@ -5,7 +5,7 @@ using namespace Ar;
 /* Tint Constants & Typedefs */
 static constexpr auto H_EARLY_R = 0.275f, H_EARLY_G = 0.495f, H_EARLY_B = 0.5603125f;
 static constexpr auto H_LATE_R = 0.5603125f, H_LATE_G = 0.3403125f, H_LATE_B = 0.275f;
-static constexpr auto H_HIT_R = 0.73f, H_HIT_G = 0.6244921875f, H_HIT_B = 0.4591015625f;
+static constexpr auto H_HIT_R = 0.88f, H_HIT_G = 0.7528125f, H_HIT_B = 0.5534375f;
 
 static constexpr auto A_EARLY_R = 0.3125f, A_EARLY_G = 0.5625f, A_EARLY_B = 0.63671875f;
 static constexpr auto A_LATE_R = 0.63671875f, A_LATE_G = 0.38671875f, A_LATE_B = 0.3125f;
@@ -64,7 +64,7 @@ static bool renderEchoHelper(lua_State* L, const Echo& echo, const uint16_t ehgo
 				Arf.lastEhgo[ ehPos.whole ] = 1;
 				dmGameObject::SetPosition(
 					( lua_rawgeti(L, EHGO, ehgoUsed+1), dmScript::CheckGOInstance(L,-1) ),
-					p3( ehPos.a, ehPos.b, 0.015625f )
+					p3( ehPos.a, ehPos.b, 0 )
 				);
 				return lua_pop(L, 1), true;
 			}
@@ -80,10 +80,10 @@ static bool renderAnim(lua_State* L, const Duo finalPos, const int16_t msPassed,
 			   rAgo = ( lua_rawgeti(L, AGOR, agoUsed), dmScript::CheckGOInstance(L, -1) );
 
 	/* Position */ {
-		const float finalPosZ = msPassed * 0.00001f;
+		const float finalPosZ = msPassed * 0.0001f;
 			  auto  finalPos3 = p3( finalPos.a, finalPos.b, finalPosZ );
 		dmGameObject::SetPosition( lAgo, finalPos3 );
-		dmGameObject::SetPosition( rAgo, finalPos3.setZ(finalPosZ + 0.00001f) );
+		dmGameObject::SetPosition( rAgo, finalPos3.setZ(finalPosZ + 0.00005f) );
 	}
 
 	/* Tint XYZ */
@@ -238,33 +238,34 @@ int Ar::UpdateArf(lua_State* L) {
 		lua_pop(L, 2);
 
 		if( frameOffset < -370 ) {
-			dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, frameOffset * 0.0001f) );
-			const float color = 0.1337f + (frameOffset + 510) * 0.0005f;
+			dmGameObject::SetPosition( hintGo,
+								p3(finalPos.a, finalPos.b, frameOffset * 0.001f - 0.25f) );
+			const float color = 0.3f + (frameOffset + 510) * 0.0005f;
 			hintTint -> setX(color).setY(color).setZ(color);
 			hgoUsed++;
 		}
 		else if( frameOffset <= 370) switch(currentHint.status) {
 			case NJUDGED:
 			case SPECIAL:
-				hintTint -> setX(0.2037f).setY(0.2037f).setZ(0.2037f);
-				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, -0.035f) );
+				hintTint -> setX(0.37f).setY(0.37f).setZ(0.37f);
+				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, -0.5f) );
 				hgoUsed++;
 				break;
 			case NJUDGED_LIT:
 			case SPECIAL_LIT: HCASE_AUTO_U0:
-				hintTint -> setX(0.3737f).setY(0.3737f).setZ(0.3737f);
-				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, -0.033f) );
+				hintTint -> setX(0.573f).setY(0.573f).setZ(0.573f);
+				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, -0.4f) );
 				hgoUsed++;
 				break;
 			case EARLY_LIT:   // No break here
 				hintTint -> setX(H_EARLY_R).setY(H_EARLY_G).setZ(H_EARLY_B);
-				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, -0.004f) );
+				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, 0) );
 				hgoUsed++;
 			case EARLY:
 				agoUsed += renderAnim(L, finalPos, frameOffset-currentHint.deltaMs, 1, agoUsed);
 				break;
 			case HIT_LIT: HCASE_AUTO_HINT_ANIM:   // No break here
-				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, -0.004f) );
+				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, -0.0625f) );
 				switch(Arf.daymode) {
 					case true:
 						hintTint -> setX(H_HIT_R).setY(H_HIT_G).setZ(H_HIT_B);
@@ -277,16 +278,15 @@ int Ar::UpdateArf(lua_State* L) {
 				break;
 			case LATE_LIT: HCASE_LATE_LIT:  // No break here
 				hintTint -> setX(H_LATE_R).setY(H_LATE_G).setZ(H_LATE_B);
-				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, -0.004f) );
+				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, 0) );
 				hgoUsed++;
 			case LATE: HCASE_LATE:
 				agoUsed += renderAnim(L, finalPos, frameOffset-currentHint.deltaMs, 2, agoUsed);
 				break;
 			case LOST:
 			case SPECIAL_LOST: {
-				dmGameObject::SetPosition( hintGo,
-									p3(finalPos.a, finalPos.b, 0.005f - frameOffset * 0.0001f) );
-				float color =  0.437f - frameOffset * 0.00037f;		hintTint -> setX(color);
+				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, -frameOffset * 0.001f) );
+				float color =  0.637f - frameOffset * 0.00037f;		hintTint -> setX(color);
 					  color *= 0.51f;								hintTint -> setY(color).setZ(color);
 				hgoUsed++;
 			}	break;
@@ -323,7 +323,7 @@ int Ar::UpdateArf(lua_State* L) {
 		lua_pop(L, 2);
 
 		if( frameOffset < -370 ) {
-			const float color = 0.1337f + (frameOffset + 510) * 0.0005f;
+			const float color = 0.3f + (frameOffset + 510) * 0.0005f;
 				  float life = Arf.msTime - currentEcho.fromT;
 						life = life > 151 ? 1 : life / 151.0f;
 			echoTint -> setX(color).setY(color).setZ(color).setW(life);
@@ -338,7 +338,7 @@ int Ar::UpdateArf(lua_State* L) {
 			case SPECIAL: {
 				float life = Arf.msTime - currentEcho.fromT;
 					  life = life > 151 ? 1 : life / 151.0f;
-				echoTint -> setX(0.2037f).setY(0.2037f).setZ(0.2037f).setW(life);
+				echoTint -> setX(0.37f).setY(0.37f).setZ(0.37f).setW(life);
 
 				dmGameObject::SetScale( echoGo, 0.637f + 0.437f * (life = 1.0f - life) * life );
 				dmGameObject::SetPosition( echoGo, p3(egoPos.a, egoPos.b, 0.02f) );
@@ -349,7 +349,7 @@ int Ar::UpdateArf(lua_State* L) {
 			case SPECIAL_LIT: ECASE_AUTO_U0: {
 				float life = Arf.msTime - currentEcho.fromT;
 					  life = life > 151 ? 1 : life / 151.0f;
-				echoTint -> setX(0.3737f).setY(0.3737f).setZ(0.3737f).setW(life);
+				echoTint -> setX(0.573f).setY(0.573f).setZ(0.573f).setW(life);
 
 				dmGameObject::SetScale( echoGo, 0.637f + 0.437f * (life = 1.0f - life) * life );
 				dmGameObject::SetPosition( echoGo, p3(egoPos.a, egoPos.b, 0.02f) );
@@ -375,7 +375,7 @@ int Ar::UpdateArf(lua_State* L) {
 				break;
 			case LOST:
 			case SPECIAL_LOST: {
-				float color = 0.437f - frameOffset *  0.00037f;
+				float color = 0.637f - frameOffset *  0.00037f;
 				echoTint -> setX(color).setY(color *= currentEcho.status==SPECIAL_LOST ? 0.51f : 1)
 									   .setZ(color).setW(1.0f);
 				dmGameObject::SetScale( echoGo, 0.637f );
