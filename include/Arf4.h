@@ -99,8 +99,7 @@ namespace Arf4 {
 		//------------------------//
 		int64_t						minDt:8, maxDt:8;
 		uint64_t					msTime:20, daymode:1, judgeRange:7 = 37;
-		uint64_t					hHit:15, spJudged:5, eHit:15, early:15, late:15,
-									lost:15 /* 4bits Padding */;
+		uint64_t					hHit:15, spJudged:5, eHit:15, early:15, late:15, lost:15 /* 4 */ ;
 		/*------------------------*/
 		float						objectSizeX = 360, objectSizeY = 360;
 		float						xScale = 1, yScale = 1, xDelta, yDelta, rotSin, rotCos = 1;
@@ -139,7 +138,8 @@ namespace Ar {
 	 int  NewWish(lua_State* L);
 	 int  NewHint(lua_State* L);
 	 int  NewEcho(lua_State* L);
-	 int  Move(lua_State* L);
+	 int  BarToMs(lua_State* L) noexcept;
+	 int  Move(lua_State* L) noexcept;
 
 	/* Internal */
 	void  JudgeArfSweep() noexcept;

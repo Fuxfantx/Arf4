@@ -16,6 +16,7 @@ static const luaL_reg Arf4Lib[] = {
 	{"OrganizeArf", Ar::OrganizeArf},
 	{"NewDeltaGroup", Ar::NewDeltaGroup},
 	{"DeltaTone", Ar::DeltaTone},
+	{"BarToMs", Ar::BarToMs},
 	{"NewVerse", Ar::NewVerse},
 	{"NewHelper", Ar::NewHelper},
 	{"NewChild", Ar::NewChild},
@@ -46,7 +47,8 @@ static const luaL_reg Arf4Lib[] = {
 static dmExtension::Result Arf4Init(dmExtension::Params* p) {
 	#ifdef DM_PLATFFORM_ANDROID
 		JNIEnv* pEnv;
-		pVm = dmGraphics::GetNativeAndroidJavaVM(), pVm->AttachCurrentThread(&pEnv, NULL);
+		pVm = dmGraphics::GetNativeAndroidJavaVM();
+		pVm-> AttachCurrentThread(&pEnv, NULL);
 		hapticClass = (jclass)pEnv->NewGlobalRef(
 			pEnv->CallObjectMethod(
 				/* Object */ pEnv->CallObjectMethod(
@@ -65,7 +67,7 @@ static dmExtension::Result Arf4Init(dmExtension::Params* p) {
 	#endif
 	return luaL_register(p->m_L, "Arf4", Arf4Lib), lua_pop(p->m_L, 1), dmExtension::RESULT_OK;
 }
-static dmExtension::Result Arf4Final(dmExtension::Params* p) {
+static dmExtension::Result Arf4Final(dmExtension::Params*) {
 	#ifdef DM_PLATFFORM_ANDROID
 		JNIEnv* pEnv;
 		pVm  -> AttachCurrentThread(&pEnv, NULL);
@@ -74,7 +76,5 @@ static dmExtension::Result Arf4Final(dmExtension::Params* p) {
 	#endif
 	return dmExtension::RESULT_OK;
 }
-static dmExtension::Result Arf4APPOK(dmExtension::AppParams* p) {
-	return dmExtension::RESULT_OK;
-}
+static dmExtension::Result Arf4APPOK(dmExtension::AppParams*) { return dmExtension::RESULT_OK; }
 DM_DECLARE_EXTENSION(AcArf4, "AcArf4", Arf4APPOK, Arf4APPOK, Arf4Init, nullptr, nullptr, Arf4Final)

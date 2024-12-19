@@ -19,7 +19,7 @@ constexpr uint8_t WHEN_DXDY_UNDERZERO[] = { 0,
 
 /* Internal Fns */
 static float barToTone(const float bar) noexcept {
-	if( bar > 0 ) {
+	if( !Arf.tempoList.empty()  &&  bar > 0 ) {
 		while( Arf.tempoIt != Arf.tempoList.cbegin()  &&  bar < (Arf.tempoIt-1)->init )
 			--Arf.tempoIt;
 		const auto lastIt = Arf.tempoList.cend() - 1;
@@ -35,21 +35,23 @@ static float barToTone(const float bar) noexcept {
 }
 
 static float toneToBar(const float tone) noexcept {   // Internally, Tone won't be negative.
-	while( Arf.tempoIt != Arf.tempoList.cbegin()  &&  tone < (Arf.tempoIt-1)->toneBase )
-		--Arf.tempoIt;
-	const auto lastIt = Arf.tempoList.cend() - 1;
-	while( Arf.tempoIt != lastIt ) {
-		if( tone < (Arf.tempoIt+1)->toneBase )
-			return Arf.tempoIt->init + (tone - Arf.tempoIt->toneBase) * Arf.tempoIt->b / Arf.tempoIt->a;
-		++Arf.tempoIt;
+	if( !Arf.tempoList.empty() ) {
+		while( Arf.tempoIt != Arf.tempoList.cbegin()  &&  tone < (Arf.tempoIt-1)->toneBase )
+			--Arf.tempoIt;
+		const auto lastIt = Arf.tempoList.cend() - 1;
+		while( Arf.tempoIt != lastIt ) {
+			if( tone < (Arf.tempoIt+1)->toneBase )
+				return Arf.tempoIt->init + (tone - Arf.tempoIt->toneBase) * Arf.tempoIt->b / Arf.tempoIt->a;
+			++Arf.tempoIt;
+		}
+		if( Arf.tempoIt == lastIt )
+			return lastIt->init + (tone - lastIt->toneBase) * lastIt->b / lastIt->a;
 	}
-	if( Arf.tempoIt == lastIt )
-		return lastIt->init + (tone - lastIt->toneBase) * lastIt->b / lastIt->a;
 	return 0;
 }
 
 static float barToBeat(const float bar) noexcept {
-	if( bar > 0 ) {
+	if( !Arf.tempoList.empty()  &&  bar > 0 ) {
 		while( Arf.tempoIt != Arf.tempoList.cbegin()  &&  bar < (Arf.tempoIt-1)->init )
 			--Arf.tempoIt;
 		const auto lastIt = Arf.tempoList.cend() - 1;
@@ -65,16 +67,18 @@ static float barToBeat(const float bar) noexcept {
 }
 
 static float beatToMs(const float beat) noexcept {   // Internally, Beat won't be negative.
-	while( Arf.beatIt != Arf.beatToMs.cbegin()  &&  beat < (Arf.beatIt-1)->init )
-		--Arf.beatIt;
-	const auto lastIt = Arf.beatToMs.cend() - 1;
-	while( Arf.beatIt != lastIt ) {
-		if( beat < (Arf.beatIt+1)->init )
-			return Arf.beatIt->base + (beat - Arf.beatIt->init) * Arf.beatIt->value;
-		++Arf.beatIt;
+	if( !Arf.tempoList.empty() ) {
+		while( Arf.beatIt != Arf.beatToMs.cbegin()  &&  beat < (Arf.beatIt-1)->init )
+			--Arf.beatIt;
+		const auto lastIt = Arf.beatToMs.cend() - 1;
+		while( Arf.beatIt != lastIt ) {
+			if( beat < (Arf.beatIt+1)->init )
+				return Arf.beatIt->base + (beat - Arf.beatIt->init) * Arf.beatIt->value;
+			++Arf.beatIt;
+		}
+		if( Arf.beatIt == lastIt )
+			return lastIt->base + (beat - lastIt->init) * lastIt->value;
 	}
-	if( Arf.beatIt == lastIt )
-		return lastIt->base + (beat - lastIt->init) * lastIt->value;
 	return 0;
 }
 
@@ -386,6 +390,13 @@ int Ar::DeltaTone(lua_State* L) noexcept {
 		rTone = lua_tonumber(L, 2),
 		rTone = Arf.sinceTone + (rTone<0 ? 0 : rTone<1 ? rTone : rTone*0.0625f);
 	return lua_pushnumber(L, rTone - lTone), 1;
+}
+
+int Ar::BarToMs(lua_State* L) noexcept {
+	/* Usage:
+	 * local ms = BarToMs(30)
+	 */
+	return lua_pushnumber(L, beatToMs(barToBeat( lua_tonumber(L,1) ))), 1;
 }
 
 static std::map<float, float> deltaMap;
@@ -811,7 +822,7 @@ int Ar::MirrorUD(lua_State*) noexcept {
 	return 0;
 }
 
-int Ar::Move(lua_State* L) {
+int Ar::Move(lua_State* L) noexcept {
 	/* Usage:
 	 * Move( {0} )			-- New Init Position(to be converted to Beat)
 	 */
