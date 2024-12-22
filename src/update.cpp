@@ -238,7 +238,7 @@ int Ar::UpdateArf(lua_State* L) {
 		lua_pop(L, 2);
 
 		if( frameOffset < -370 ) {
-			dmGameObject::SetPosition(hintGo, p3(finalPos.a, finalPos.b, frameOffset * 0.001f - 0.25f));
+			dmGameObject::SetPosition(hintGo, p3(finalPos.a, finalPos.b, frameOffset*0.0001f-0.037f));
 			const float color = 0.3f + (frameOffset + 510) * 0.0005f;
 			hintTint -> setX(color).setY(color).setZ(color);
 			hgoUsed++;
@@ -247,24 +247,24 @@ int Ar::UpdateArf(lua_State* L) {
 			case NJUDGED:
 			case SPECIAL:
 				hintTint -> setX(0.37f).setY(0.37f).setZ(0.37f);
-				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, -0.5f) );
+				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, -0.0637f) );
 				hgoUsed++;
 				break;
 			case NJUDGED_LIT:
 			case SPECIAL_LIT: HCASE_AUTO_U0:
 				hintTint -> setX(0.573f).setY(0.573f).setZ(0.573f);
-				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, -0.4f) );
+				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, -0.0573f) );
 				hgoUsed++;
 				break;
 			case EARLY_LIT:   // No break here
 				hintTint -> setX(H_EARLY_R).setY(H_EARLY_G).setZ(H_EARLY_B);
-				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, 0) );
+				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, -0.0037f) );
 				hgoUsed++;
 			case EARLY:
 				agoUsed += renderAnim(L, finalPos, frameOffset-currentHint.deltaMs, 1, agoUsed);
 				break;
 			case HIT_LIT: HCASE_AUTO_HINT_ANIM:   // No break here
-				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, -0.0625f) );
+				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, -0.0073f) );
 				switch(Arf.daymode) {
 					case true:
 						hintTint -> setX(H_HIT_R).setY(H_HIT_G).setZ(H_HIT_B);
@@ -277,14 +277,14 @@ int Ar::UpdateArf(lua_State* L) {
 				break;
 			case LATE_LIT: HCASE_LATE_LIT:  // No break here
 				hintTint -> setX(H_LATE_R).setY(H_LATE_G).setZ(H_LATE_B);
-				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, 0) );
+				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, -0.0037f) );
 				hgoUsed++;
 			case LATE: HCASE_LATE:
 				agoUsed += renderAnim(L, finalPos, frameOffset-currentHint.deltaMs, 2, agoUsed);
 				break;
 			case LOST:
 			case SPECIAL_LOST: {
-				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, -frameOffset * 0.001f) );
+				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, -frameOffset*0.00011f) );
 				float cl ; hintTint->setX(cl = 0.573f - frameOffset * 0.00037f).setY(cl *= 0.51f).setZ(cl);
 				hgoUsed++;
 			}	break;
