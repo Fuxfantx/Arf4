@@ -238,8 +238,7 @@ int Ar::UpdateArf(lua_State* L) {
 		lua_pop(L, 2);
 
 		if( frameOffset < -370 ) {
-			dmGameObject::SetPosition( hintGo,
-								p3(finalPos.a, finalPos.b, frameOffset * 0.001f - 0.25f) );
+			dmGameObject::SetPosition(hintGo, p3(finalPos.a, finalPos.b, frameOffset * 0.001f - 0.25f));
 			const float color = 0.3f + (frameOffset + 510) * 0.0005f;
 			hintTint -> setX(color).setY(color).setZ(color);
 			hgoUsed++;
@@ -286,8 +285,7 @@ int Ar::UpdateArf(lua_State* L) {
 			case LOST:
 			case SPECIAL_LOST: {
 				dmGameObject::SetPosition( hintGo, p3(finalPos.a, finalPos.b, -frameOffset * 0.001f) );
-				float color =  0.573f - frameOffset * 0.00037f;		hintTint -> setX(color);
-					  color *= 0.51f;								hintTint -> setY(color).setZ(color);
+				float cl ; hintTint->setX(cl = 0.573f - frameOffset * 0.00037f).setY(cl *= 0.51f).setZ(cl);
 				hgoUsed++;
 			}	break;
 			default: {   // AUTO & SPECIAL_AUTO
@@ -318,6 +316,9 @@ int Ar::UpdateArf(lua_State* L) {
 			.a = 900.0f + (echoPos.a * Arf.rotCos - echoPos.b * Arf.rotSin) * Arf.xScale + Arf.xDelta,
 			.b = 540.0f + (echoPos.a * Arf.rotSin + echoPos.b * Arf.rotCos) * Arf.yScale + Arf.yDelta
 		};
+		if( egoPos.a < Arf.boundL  ||  egoPos.a > Arf.boundR )			continue;
+		if( egoPos.b < Arf.boundD  ||  egoPos.b > Arf.boundU )			continue;
+
 		const GO echoGo   = ( lua_rawgeti(L, EGO,   ++egoUsed), dmScript::CheckGOInstance(L, -1) );
 		const v4 echoTint = ( lua_rawgeti(L, ETINT, egoUsed--), dmScript::CheckVector4(L, -1)    );
 		lua_pop(L, 2);
@@ -397,7 +398,6 @@ int Ar::UpdateArf(lua_State* L) {
 			default:;
 		}
 	}
-
 	return lua_pushinteger(L, wgoUsed),  lua_pushinteger(L, hgoUsed), lua_pushinteger(L, egoUsed),
 		   lua_pushinteger(L, ehgoUsed), lua_pushinteger(L, agoUsed), lua_pushboolean(L, hitSound.hint),
 																	  lua_pushboolean(L, hitSound.echo), 7;
