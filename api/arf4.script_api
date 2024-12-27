@@ -1,73 +1,39 @@
-- name: Arf3
+- name: Arf4
   type: table
   members:
 
-  - name: MakeArf
+  - name: LoadArf
+    type: function
+    parameters:
+    - name: path
+      type: string
+    - name: is_auto
+      type: boolean
+    returns:
+    - name: before_or_false
+      type: [number, boolean]
+    - name: object_count
+      type: number
+    - name: wgo_required
+      type: number
+    - name: hgo_required
+      type: number
+    - name: ego_required
+      type: number
+
+  - name: ExportArf
     type: function
     desc: Included only when the macro "AR_BUILD_VIEWER" is defined
-    parameters:
-    - name: merged_time_layer_1
-      type: table
-    - name: merged_time_layer_2
-      type: table
-    - name: wgo_required
-      type: number
-    - name: ego_required
-      type: number
-    - name: wishes
-      type: table
-    - name: echoes
-      type: table
     returns:
-    - name: before
-      type: number
-    - name: object_count
-      type: number
-    - name: hgo_required
-      type: number
+    - name: str_or_nil
+      type: [string, nil]
 
-  - name: DumpArf
+  - name: OrganizeArf
     type: function
-    desc: Included when the macro "AR_BUILD_VIEWER" or "AR_WITH_EXPORTER" is defined
-    parameters:
-    - name: with_judge_info
-      type: boolean
+    desc: Included only when the macro "AR_BUILD_VIEWER" is defined
     returns:
-    - name: buf
-      type: string
-
-
-  - name: InitArf2
-    type: function
-    desc: Included when the macro "AR_BUILD_VIEWER" or "AR_COMPATIBILITY" is defined
-    parameters:
-    - name: buf
-      type: table
-    - name: is_auto
-      type: boolean
-    returns:
-    - name: before
-      type: number
-    - name: object_count
-      type: number
-    - name: wgo_required
-      type: number
-    - name: hgo_required
-      type: number
-    - name: ego_required
-      type: number
-      desc: Always equal to 0
-
-  - name: InitArf3
-    type: function
-    parameters:
-    - name: buf
-      type: table
-    - name: is_auto
-      type: boolean
-    returns:
-    - name: before
-      type: number
+    - name: before_or_false
+      type: [number, boolean]
     - name: object_count
       type: number
     - name: wgo_required
@@ -77,12 +43,60 @@
     - name: ego_required
       type: number
 
-
-  - name: SetDaymode
+  - name: UpdateArf
     type: function
     parameters:
-    - name: is_daymode
+    - name: ms
+      type: number
+    - name: dt
+      type: number
+    - name: wgos
+      type: table
+    - name: hgos
+      type: table
+    - name: egos
+      type: table
+    - name: ehgos
+      type: table
+    - name: algos
+      type: table
+    - name: argos
+      type: table
+    - name: wtints
+      type: table
+    - name: htints
+      type: table
+    - name: etints
+      type: table
+    - name: atints
+      type: table
+    returns:
+    - name: wgo_used
+      type: number
+    - name: hgo_used
+      type: number
+    - name: ego_used
+      type: number
+    - name: ehgo_used
+      type: number
+    - name: ago_used
+      type: number
+    - name: hint_play_hitsound
       type: boolean
+    - name: echo_play_hitsound
+      type: boolean
+
+  - name: JudgeArf
+    type: function
+    desc: Included only when the macro "AR_BUILD_VIEWER" is not defined
+    parameters:
+    - name: x_set
+      type: table
+    - name: y_set
+      type: table
+    - name: mask
+      type: number
+
 
   - name: SetCam
     type: function
@@ -98,47 +112,25 @@
     - name: rotdeg
       type: number
 
-  - name: UpdateArf
+  - name: SetBound
     type: function
+    desc: Included only when the macro "AR_BUILD_VIEWER" is not defined
     parameters:
-    - name: mstime
+    - name: lbound
       type: number
-    - name: table_wgo
-      type: table
-    - name: table_hgo
-      type: table
-    - name: table_ego
-      type: table
-    - name: table_agol
-      type: table
-    - name: table_agor
-      type: table
-    - name: table_wtint
-      type: table
-    - name: table_htint
-      type: table
-    - name: table_etint
-      type: table
-    - name: table_atint
-      type: table
-    returns:
-    - name: hit
+    - name: rbound
       type: number
-    - name: early
+    - name: ubound
       type: number
-    - name: lost
-      type: number
-    - name: special_hint_judged
-      type: boolean
-    - name: wgo_used
-      type: number
-    - name: hgo_used
-      type: number
-    - name: ego_used
-      type: number
-    - name: ago_used
+    - name: dbound
       type: number
 
+  - name: SetDaymode
+    type: function
+    desc: Included only when the macro "AR_BUILD_VIEWER" is not defined
+    parameters:
+    - name: is_daymode
+      type: boolean
 
   - name: SetObjectSize
     type: function
@@ -147,52 +139,110 @@
     - name: x
       type: number
     - name: y
-      type: number
-      desc: Optional. y=x if y is not a number
+      type: [number, nil]
 
   - name: SetJudgeRange
     type: function
     desc: Included only when the macro "AR_BUILD_VIEWER" is not defined
     parameters:
-    - name: range
+    - name: ms
       type: number
 
-  - name: SetIDelta
+  - name: GetJudgeStat
     type: function
     desc: Included only when the macro "AR_BUILD_VIEWER" is not defined
-    parameters:
-    - name: idelta
-      type: number
-
-  - name: JudgeArf
-    type: function
-    desc: Included only when the macro "AR_BUILD_VIEWER" is not defined
-    parameters:
-    - name: table_touch
-      type: table
     returns:
-    - name: hit
+    - name: hint_hit
+      type: [number, boolean]
+    - name: echo_hit
       type: number
     - name: early
       type: number
     - name: late
       type: number
-    - name: special_hint_judged
-      type: boolean
+    - name: lost
+      type: number
+    - name: count_of_special_hint_judged
+      type: number
+    - name: object_count
+      type: number
 
 
   - name: NewTable
     type: function
-    desc: Included only when the macro "AR_BUILD_VIEWER" is defined
     parameters:
     - name: narr
       type: number
     - name: nrec
       type: number
     returns:
-    - name: new_table
+    - name: result
       type: table
 
-
-  - name: FinalArf
+  - name: PushNullStr
     type: function
+    desc: Included only when the macro "AR_BUILD_VIEWER" is not defined
+    returns:
+    - name: nullptr_userdata
+      type: table
+
+  - name: DoHapticFeedback
+    type: function
+    desc: Included only when the macro "AR_BUILD_VIEWER" is not defined
+
+  - name: SetInputDelta
+    type: function
+    desc: Included only when the macro "AR_BUILD_VIEWER" is not defined
+    parameters:
+    - name: ms
+      type: number
+
+  - name: TransformStr
+    type: function
+    desc: Included only when the macro "AR_BUILD_VIEWER" is not defined
+    parameters:
+    - name: input_str
+      type: string
+    - name: proof_str
+      type: string
+    - name: is_decode
+      type: boolean
+    returns:
+    - name: output_str
+      type: string
+
+  - name: PartialEase
+    type: function
+    desc: Included only when the macro "AR_BUILD_VIEWER" is not defined
+    parameters:
+    - name: from
+      type: number
+    - name: type
+      type: number
+    - name: to
+      type: number
+    - name: ratio
+      type: number
+    - name: curve_init
+      type: number
+    - name: curve_end
+      type: number
+    returns:
+    - name: result
+      type: number
+
+  - name: Ease
+    type: function
+    desc: Included only when the macro "AR_BUILD_VIEWER" is not defined
+    parameters:
+    - name: from
+      type: number
+    - name: type
+      type: number
+    - name: to
+      type: number
+    - name: ratio
+      type: number
+    returns:
+    - name: result
+      type: number

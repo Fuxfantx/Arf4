@@ -1,4 +1,5 @@
 //  Aerials Fumen Player v4  //
+#pragma once
 #include <unordered_map>
 #include <dmsdk/sdk.h>
 
@@ -162,7 +163,6 @@ namespace Ar {
 	 int  GetJudgeStat(lua_State* L);
 
 	/* Other Utils */
-	 int  GetMd5(lua_State* L);
 	 int  NewTable(lua_State* L);
 	 int  PushNullPtr(lua_State* L);
 	 int  DoHapticFeedback(lua_State* L);

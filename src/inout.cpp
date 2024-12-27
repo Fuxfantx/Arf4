@@ -148,15 +148,6 @@ int Ar::LoadArf(lua_State* L) {
 }
 
 #ifdef AR_BUILD_VIEWER
-int GetMd5(lua_State* L) {
-	/* Usage:
-	 * local md5_result = Arf4.GetMd5("my string input")
-	 */
-	size_t size;
-	uint8_t output[16];
-	dmCrypt::HashMd5( (const uint8_t*)luaL_checklstring(L, 1, &size), (uint32_t)size, output );
-	return lua_pushlstring(L, (char*)output, 16), 1;
-}
 int Ar::ExportArf(lua_State* L) {
 	/* Usage:
 	 * local str_or_nil = Arf4.ExportArf()

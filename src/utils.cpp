@@ -247,7 +247,7 @@ int Ar::GetJudgeStat(lua_State* L) {
 /* Other Utils */
 int Ar::Ease(lua_State* L) {
 	/* Usage:
-	 * local result = Arf4.SimpleEase(from, type, to, ratio)
+	 * local result = Arf4.Ease(from, type, to, ratio)
 	 */
 	const lua_Number from  = luaL_checknumber(L, 1),
 					 delta = luaL_checknumber(L, 3) - from;

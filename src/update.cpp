@@ -141,7 +141,7 @@ int Ar::UpdateArf(lua_State* L) {
 		if( Arf.msTime >= Arf.before )			return 0;
 		if( Arf.msTime < 2 )					Arf.msTime = 2;
 	}
-	const uint32_t frameEndMs = Arf.msTime + (uint32_t)(luaL_checknumber(L, 2) * 1000.0);
+	const uint32_t frameEndMs = Arf.msTime + (uint32_t)(lua_tonumber(L, 2) * 1000.0);
 		  uint16_t wgoUsed = 0, hgoUsed = 0, egoUsed = 0, ehgoUsed = 0 , agoUsed = 0;
 	struct{uint8_t hint:1 = false, echo:1 = false;} hitSound;
 
